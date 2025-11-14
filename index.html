@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MuzeGen AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.27.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
+  }
+}
+</script>
+<style>
+      body {
+        background-color: #0d0c1c;
+        background-image: radial-gradient(circle at 100% 0%, rgba(168, 85, 247, 0.25), transparent 40%),
+                          radial-gradient(circle at 0% 100%, rgba(45, 212, 191, 0.25), transparent 40%);
+        background-attachment: fixed;
+      }
+      
+      /* Styles for the new CustomSelect component */
+      .custom-select-options {
+        background-color: rgba(22, 19, 36, 0.8); /* Dark, semi-transparent background */
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px); /* For Safari compatibility */
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 0.5rem;
+        padding: 0.25rem;
+        position: absolute;
+        left: 0;
+        right: 0;
+        z-index: 50; /* Ensure it appears on top of other content */
+        margin-top: 0.5rem;
+        max-height: 200px; /* Prevent long lists from going off-screen */
+        overflow-y: auto;
+      }
+
+      .custom-select-option {
+        padding: 0.5rem 0.75rem;
+        cursor: pointer;
+        border-radius: 0.375rem;
+        transition: background-color 0.2s ease-in-out;
+        color: #e5e7eb; /* Light gray text */
+        font-size: 0.875rem; /* 14px */
+      }
+      
+      .custom-select-option:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+
+      .custom-select-option.selected {
+        background-color: rgba(20, 184, 166, 0.5); /* A subtle teal to show selection */
+        font-weight: 600;
+        color: #ffffff;
+      }
+
+      /* New Responsive Sidebar Styles */
+      @keyframes rgb-glow {
+        0% { box-shadow: 0 0 5px #ec4899, 0 0 10px #ec4899, 0 0 15px #ec4899; }
+        33% { box-shadow: 0 0 5px #8b5cf6, 0 0 10px #8b5cf6, 0 0 15px #8b5cf6; }
+        66% { box-shadow: 0 0 5px #3b82f6, 0 0 10px #3b82f6, 0 0 15px #3b82f6; }
+        100% { box-shadow: 0 0 5px #ec4899, 0 0 10px #ec4899, 0 0 15px #ec4899; }
+      }
+
+      .menu-toggle-button {
+        position: fixed;
+        top: 1.25rem;
+        left: 1.25rem;
+        z-index: 50;
+        width: 28px;
+        height: 28px;
+        border-radius: 9999px;
+        background-color: rgba(22, 19, 36, 0.5);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        animation: rgb-glow 4s linear infinite;
+        opacity: 0.7; /* Transparent by default */
+        transition: transform 0.2s ease-in-out, opacity 0.3s ease-in-out;
+      }
+      
+      .menu-toggle-button:hover {
+        transform: scale(1.1);
+        opacity: 1; /* Fully opaque on hover */
+      }
+      
+      @media (min-width: 768px) {
+        .menu-toggle-button {
+          display: none;
+        }
+      }
+
+      .sidebar-overlay {
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 39;
+        transition: opacity 0.3s ease-in-out;
+      }
+      
+      @media (min-width: 768px) {
+        .sidebar-overlay {
+          display: none;
+        }
+      }
+
+      /* New Sticky Header Styles */
+      .sticky-header {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        height: 4.5rem; /* Reduced height */
+        display: flex;
+        align-items: center;
+        /* Transparent by default, transitions in on scroll */
+        background-color: transparent;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        transition: background-color 0.3s ease-in-out, backdrop-filter 0.3s ease-in-out;
+      }
+      .sticky-header.scrolled {
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+</style>
+</head>
+  <body class="bg-gray-800">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
