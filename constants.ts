@@ -1,4 +1,5 @@
 
+
 export const ART_STYLES: string[] = [
   'Hyper Realistic',
   'Photorealistic',
@@ -275,3 +276,36 @@ export const STRUCTURED_PROMPT_TEXTS = {
         error: 'Harap isi semua deskripsi gerakan kustom jika dipilih.',
     }
 };
+
+// --- Affiliate Generator Constants ---
+
+export const AI_MODEL_TYPES: { label: string, value: string }[] = [
+    { label: 'AUTO', value: 'AUTO' },
+    { label: 'Pria', value: 'PRIA' },
+    { label: 'Wanita', value: 'WANITA' },
+];
+
+export const AI_MODEL_AGES: { label: string, value: string }[] = [
+    { label: 'AUTO', value: 'AUTO' },
+    { label: 'Remaja', value: 'REMAJA' },
+    { label: 'Dewasa Muda', value: 'DEWASA_MUDA' },
+    { label: 'Dewasa', value: 'DEWASA' },
+    { label: 'Lansia', value: 'LANSIA' },
+];
+
+export const AFFILIATE_ASPECT_RATIOS: { label: string, value: string }[] = [
+    { label: 'POTRAIT (9:16)', value: '9:16' },
+    { label: 'SQUARE (1:1)', value: '1:1' },
+    { label: 'LANDSCAPE (16:9)', value: '16:9' },
+];
+
+export const AFFILIATE_AD_TYPES: { label: string, value: string }[] = [
+    { label: 'AUTO (Default)', value: 'AUTO' },
+    { label: 'Soft Selling', value: 'SOFT_SELLING' },
+    { label: 'Hard Selling', value: 'HARD_SELLING' },
+];
+
+export const AFFILIATE_LANGUAGES: { label: string, value: string }[] = [
+    { label: 'Indonesia', value: 'INDONESIA' },
+    { label: 'English', value: 'ENGLISH' },
+];

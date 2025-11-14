@@ -2,11 +2,12 @@
 
 
 
-
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { generateImageFromText, editImageWithPrompt, getPromptFeedback, getSmartSuggestions, generateVideoFromPrompt, generateDialogueScript, generateJsonPrompt, analyzeImageForMovement, generateSingleImage } from './services/geminiService';
-import { ART_STYLES, COLOR_PALETTES, ASPECT_RATIOS, ENVIRONMENT_OPTIONS, RESOLUTION_OPTIONS, BLUR_OPTIONS, CAMERA_ANGLES, LIGHTING_STYLES, TIME_OPTIONS, VIDEO_STYLES, CAMERA_MOVEMENTS, VIDEO_RESOLUTIONS, VIDEO_LANGUAGES, VOICE_GENDERS, SPEAKING_STYLES, VIDEO_MOODS, MOVEMENT_OPTIONS, STRUCTURED_PROMPT_TEXTS, DIALOGUE_STYLES, DIALOGUE_TEMPOS, VIDEO_CONCEPTS } from './constants';
+import { generateImageFromText, editImageWithPrompt, getPromptFeedback, getSmartSuggestions, generateVideoFromPrompt, generateDialogueScript, generateJsonPrompt, analyzeImageForMovement, generateSingleImage, generateAffiliateImageFromRefs } from './services/geminiService';
+import { authService } from './services/authService';
+import { useAuth } from './hooks/useAuth';
+// Fix: Corrected typo from AFFiliate_LANGUAGES to AFFILIATE_LANGUAGES
+import { ART_STYLES, COLOR_PALETTES, ASPECT_RATIOS, ENVIRONMENT_OPTIONS, RESOLUTION_OPTIONS, BLUR_OPTIONS, CAMERA_ANGLES, LIGHTING_STYLES, TIME_OPTIONS, VIDEO_STYLES, CAMERA_MOVEMENTS, VIDEO_RESOLUTIONS, VIDEO_LANGUAGES, VOICE_GENDERS, SPEAKING_STYLES, VIDEO_MOODS, MOVEMENT_OPTIONS, STRUCTURED_PROMPT_TEXTS, DIALOGUE_STYLES, DIALOGUE_TEMPOS, VIDEO_CONCEPTS, AI_MODEL_TYPES, AI_MODEL_AGES, AFFILIATE_ASPECT_RATIOS, AFFILIATE_AD_TYPES, AFFILIATE_LANGUAGES } from './constants';
 import DnaInputSection from './components/DnaInputSection';
 import SelectableTags from './components/SelectableTags';
 import ImageDisplay from './components/ImageDisplay';
@@ -67,7 +68,7 @@ const processImageToAspectRatio = (
   });
 };
 
-const LOGO_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAMAAABHPGVmAAAASFBMVEUAAAD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igAojv8eAAAAGHRSTlMAAQIDBAUGBwgJCgsMDQ4PEBslQiYqAAADLklEQVR42u2c25qqMBBGJQkiCCoouHr/l/y2BBPKKDEz3czs/T9s1x5KmslMZiYAgGAY3vF4vL58Z9qthL3xYh3JPhfX/b/KfsP+jK/9yfYXT7b/pM5p234y9Zq+f6Tty1r5OwBOP9j6f7Zt/5Hif9jkv7bu/2vhfwXw/zrwv8Dwv8DwX8LwX8LwX8LwX8bwT8bwn4zw34z/L8H/l+D/S/B/IfqfBfyfBvxPBvwPBvyPBvxvAf+fBP+fBPyfBvyfBPyfBPyfBP+/BP6/BPyfBP6/hP/fkv9fkv8/Jf9/S/4/y/4/y/4/y/4/y/5/yP4/yP5/yP4/yP5/yP6/w/7/wP6/w/7/wP5/w/5/w/7/wP6/Q/9/Q/9/Q/9/Q/9/Q/9/RP9/RP9/RP9/RP9/RP9/hP9/hP9/hP9/hP9/hP9/xP9/xP9/xP9/xP9/xP8v6f/L+n/y/p/8v6f/L+n/S/p/0v6f9L+n/S/p/0v6f9P8X9f8X9f8X9f8X9f8X9f8X9f8b+v8b+v8b+v8b+v8b+v8b+v8j+v8j+v8j+v8j+v8j+v8j+v8j+v8r+v8r+v8r+v8r+v8r+v8r+v8z+v8z+v8z+v8z+v8z+v8z+v8z+v8D/f8A/f8A/f8A/f8A/f8A/f8B/f8B/f8B/f8B/f8B/f8B/f8D//8A//8A//8A//8A//8A//8A//8A/+f8n/N/zv85/+f8n/N/zv+v8H9F8L+i+B9R/I8o/kcE/yOC/xHB/4jgv8PwL8PwC8MvDL8w/MLwC8MvjH8M4x/D+Mew/DGMf4zhH8P4xzD+8X/v4/+u7/+67/96+L+m8F9T+K8p/FcV/quKf1XBv6rgv6XwX1L4Lyl8V5T+Kgp/FcG/qvi/pvBfE/ivCfxXBP4rAv+VwH8p8L+0+F8B/L8O/C/g/wt/v/59/j77x+Px+PLzBxG5Yv1H+QGgAAAAAElFTkSuQmCC';
+const LOGO_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAMAAABHPGVmAAAASFBMVEUAAAD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igAojv8eAAAAGHRSTlMAAQIDBAUGBwgJCgsMDQ4PEBslQiYqAAADLklEQVR42u2c25qqMBBGJQkiCCoouHr/l/y2BBPKKDEz3czs/T9s1x5KmslMZiYAgGAY3vF4vL58Z9qthL3xYh3JPhfX/b/KfsP+jK/9yfYXT7b/pM5p234y9Zq+f6Tty1r5OwBOP9j6f7Zt/5Hif9jkv7bu/2vhfwXw/zrwv8Dwv8DwX8LwX8LwX8LwX8bwT8bwn4zw34z/L8H/l+D/S/B/IfqfBfyfBvxPBvwPBvyPBvxvAf+fBP+fBPyfBvyfBPyfBPyfBP+/BP6/BPyfBP6/hP/fkv9fkv8/Jf9/S/4/y/4/y/4/y/4/y/5/yP4/yP5/yP4/yP5/yP6/w/7/wP6/w/7/wP5/w/5/w/7/wP6/Q/9/Q/9/Q/9/Q/9/Q/9/RP9/RP9/RP9/RP9/RP9/hP9/hP9/hP9/hP9/hP9/xP9/xP9/xP9/xP9/xP8v6f/L+n/y/p/8v6f/L+n/S/p/0v6f9L+n/S/p/0v6f9P8X9f8X9f8X9f8X9f8X9f8X9f8b+v8b+v8b+v8b+v8b+v8b+v8j+v8j+v8j+v8j+v8j+v8j+v8j+v8r+v8r+v8r+v8r+v8r+v8r+v8z+v8z+v8z+v8z+v8z+v8z+v8z+v8D/f8A/f8A/f8A/f8A/f8A/f8B/f8B/f8B/f8B/f8B/f8B/f8D//8A//8A//8A//8A//8A//8A//8A/+f8n/N/zv85/+f8n/N/zv+v8H9F8L+i+B9R/I8o/kcE/yOC/xHB/4jgv8PwL8PwC8MvDL8w/MLwC8MvjH8M4x/D+Mew/DGMf4zhH8P4xzD+8X/v4/+u7/+67/96+L+m8F9T+K8p/FcV/quKf1XBv6rgv6XwX1L4Lyl8V5T+Kgp/FcG/qvi/pvBfE/ivCfxXBP4rAv+VwH8p8L+0+F8B/L8O/C/g/wt/v/59/j77x+Px+PLzBxG5Yv1H+QGgAAAAAElFTkSuQmCC';
 
 // --- Icon Components ---
 const IconDashboard: React.FC = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>;
@@ -77,7 +78,7 @@ const IconProject: React.FC = () => <svg xmlns="http://www.w3.org/2000/svg" widt
 const IconAssets: React.FC = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>;
 const IconCommunity: React.FC = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>;
 const IconSettings: React.FC = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>;
-const IconProfile: React.FC = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>;
+
 const MagicMenuIcon: React.FC = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M6 8H18" stroke="white" strokeWidth="2" strokeLinecap="round"/>
@@ -89,10 +90,69 @@ const MagicMenuIcon: React.FC = () => (
   </svg>
 );
 
+const UserProfileIcon: React.FC<{ email: string }> = ({ email }) => {
+    const getInitials = (email: string) => {
+        if (!email) return '?';
+        const parts = email.split('@')[0].split('.').map(p => p[0]).join('');
+        return (parts || '?').substring(0, 2).toUpperCase();
+    }
+
+    return (
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-teal-500 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
+            {getInitials(email)}
+        </div>
+    );
+};
+
+const AffiliateResultSection: React.FC<{
+    title: string;
+    images: string[];
+    isLoading: boolean;
+}> = ({ title, images, isLoading }) => {
+    const renderContent = () => {
+        if (isLoading) {
+            return (
+                <div className="aspect-video w-full flex items-center justify-center bg-white/5 border-2 border-dashed border-white/10 rounded-lg">
+                    <svg className="animate-spin h-8 w-8 text-teal-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+            );
+        }
+
+        if (images.length > 0) {
+            return (
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                    {images.map((img, index) => (
+                        <div key={index} className="aspect-square bg-black/30 rounded-lg overflow-hidden">
+                            <img src={img} alt={`${title} image ${index + 1}`} className="w-full h-full object-cover" />
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
+        // Default placeholder
+        return (
+            <div className="aspect-video mt-2 bg-white/5 rounded-lg flex items-center justify-center text-gray-500 text-sm">
+                Preview
+            </div>
+        );
+    };
+
+    return (
+        <div className="p-4 bg-black/20 rounded-xl border border-white/10">
+            <h4 className="font-semibold text-gray-300">{title}</h4>
+            {renderContent()}
+        </div>
+    );
+};
+
 
 const App: React.FC = () => {
   // --- Auth State ---
-  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const { user, loading: authLoading } = useAuth();
   
   // --- API Key State ---
   const [isApiKeySelected, setIsApiKeySelected] = useState(false);
@@ -205,38 +265,52 @@ const App: React.FC = () => {
   const [smartSuggestions, setSmartSuggestions] = useState<string[] | null>(null);
   const [isSuggestionsLoading, setIsSuggestionsLoading] = useState<boolean>(false);
   const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
+
+  // --- Affiliate Generator State ---
+  const [mainProductPhoto, setMainProductPhoto] = useState<string | null>(null);
+  const [supportingProductPhotos, setSupportingProductPhotos] = useState<{ url: string; description: string }[]>([]);
+  const [modelPhotos, setModelPhotos] = useState<string[]>([]);
+  const [productConcept, setProductConcept] = useState<string>('');
+  const [addTextOverlay, setAddTextOverlay] = useState(false);
+  const [aiModelType, setAiModelType] = useState('AUTO');
+  const [aiModelAge, setAiModelAge] = useState('REMAJA');
+  const [isHijabModel, setIsHijabModel] = useState(false);
+  const [affiliateAspectRatio, setAffiliateAspectRatio] = useState('9:16');
+  const [affiliateAdType, setAffiliateAdType] = useState('AUTO');
+  const [narrationLanguage, setNarrationLanguage] = useState('INDONESIA');
+  const [voiceAccent, setVoiceAccent] = useState('');
+  const [affiliateBrollPhotos, setAffiliateBrollPhotos] = useState<string[]>([]);
+  const [affiliateUgcPhotos, setAffiliateUgcPhotos] = useState<string[]>([]);
+  const [affiliateCommercialPhotos, setAffiliateCommercialPhotos] = useState<string[]>([]);
+  const [isAffiliateLoading, setIsAffiliateLoading] = useState<boolean>(false);
+  const [affiliateError, setAffiliateError] = useState<string | null>(null);
+
+  const mainProductPhotoRef = useRef<HTMLInputElement>(null);
+  const supportingProductPhotosRef = useRef<HTMLInputElement>(null);
+  const modelPhotosRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
     const handleScroll = () => {
-      // Set scrolled to true if user has scrolled more than a few pixels
       setIsScrolled(window.scrollY > 10);
     };
     window.addEventListener('scroll', handleScroll);
-    handleScroll(); // Check on initial load
+    handleScroll();
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
   useEffect(() => {
-    const storedEmail = localStorage.getItem('genovaUserEmail');
-    if (storedEmail) {
-        setUserEmail(storedEmail);
-    }
-  }, []);
-
-  useEffect(() => {
     const checkApiKey = async () => {
-      if (window.aistudio && userEmail) {
+      if (window.aistudio && user) {
         const hasKey = await window.aistudio.hasSelectedApiKey();
         setIsApiKeySelected(hasKey);
       }
     };
     checkApiKey();
-  }, [userEmail]);
+  }, [user]);
 
 
-  // Effect to process uploaded image when it or the aspect ratio changes
   useEffect(() => {
     if (uploadedImage) {
         processImageToAspectRatio(uploadedImage, aspectRatio)
@@ -245,14 +319,13 @@ const App: React.FC = () => {
             })
             .catch(error => {
                 console.error("Gagal memproses gambar:", error);
-                setProcessedImage(uploadedImage); // Fallback to original on error
+                setProcessedImage(uploadedImage);
             });
     } else {
         setProcessedImage(null);
     }
   }, [uploadedImage, aspectRatio]);
 
-  // Construct Image Prompt
   useEffect(() => {
     if (activeTool !== 'gambar') return;
     const constructPrompt = () => {
@@ -301,7 +374,6 @@ const App: React.FC = () => {
       if (palette) {
         promptBody += `, dengan palet warna ${palette}`;
       }
-      // Only add aspect ratio to prompt for new generations, as it's handled by cropping for edits.
       if (aspectRatio && !uploadedImage) {
           promptBody += `, dalam rasio aspek ${aspectRatio}`;
       }
@@ -328,7 +400,6 @@ const App: React.FC = () => {
     constructPrompt();
   }, [subject, style, environment, customEnvironment, environmentDetails, palette, details, uploadedImage, resolution, backgroundBlur, cameraAngle, lightingStyle, timeOfDay, activeTool, removeBackground, aspectRatio]);
 
-  // Construct Video Prompt
   useEffect(() => {
     if (activeTool !== 'film') return;
     const constructVideoPrompt = () => {
@@ -405,7 +476,7 @@ const App: React.FC = () => {
   const handleSelectKey = async () => {
     if (window.aistudio) {
         await window.aistudio.openSelectKey();
-        setIsApiKeySelected(true); // Optimistically assume success
+        setIsApiKeySelected(true);
     }
   };
 
@@ -413,7 +484,7 @@ const App: React.FC = () => {
     const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan yang tidak diketahui.';
     if (errorMessage.includes('Requested entity was not found')) {
         errorSetter('Otorisasi gagal. Silakan pilih kembali Kunci API Anda.');
-        setIsApiKeySelected(false); // Force re-selection
+        setIsApiKeySelected(false);
     } else {
         errorSetter(errorMessage);
     }
@@ -426,7 +497,6 @@ const App: React.FC = () => {
     setGeneratedImages(null);
     try {
       let imageUrls: string[];
-      // Use the pre-processed (cropped) image for editing
       if (processedImage && uploadedImage) {
         const posePrompts = [
             'dalam pose berdiri seluruh badan',
@@ -444,7 +514,6 @@ const App: React.FC = () => {
         imageUrls = generatedUrls;
 
       } else {
-        // Generate 4 variations with consistent background, clothing, and product
         const posePrompts = [
             'dalam pose berdiri seluruh badan, menghadap kamera',
             'dalam pose duduk santai di elemen yang ada di lingkungan tersebut (misal: kursi, tangga, batu)',
@@ -454,7 +523,6 @@ const App: React.FC = () => {
 
         const generatedUrls: string[] = [];
         for (const pose of posePrompts) {
-            // Stricter prompt for new generation, emphasizing consistency
             const fullPrompt = `${finalPrompt}. INSTRUKSI PENTING: Latar belakang, pakaian model, dan produk apa pun yang dipegang atau ditampilkan harus TETAP SAMA di semua gambar. Jangan mengubahnya. Satu-satunya variasi yang diizinkan adalah pose subjek dan sudut kamera. Untuk gambar ini, gunakan pose berikut: ${pose}.`;
             const imageUrl = await generateSingleImage(fullPrompt, aspectRatio as any);
             generatedUrls.push(imageUrl);
@@ -577,7 +645,6 @@ const App: React.FC = () => {
         const parsedJson = JSON.parse(jsonString);
         setParsedJsonPrompt(parsedJson);
 
-        // --- Auto-generate images after JSON is successfully created ---
         setIsJsonImageLoading(true);
         try {
             const imagePrompts = parsedJson.map((sceneData: any) => {
@@ -590,7 +657,7 @@ const App: React.FC = () => {
                 return `A ${style} visual of ${character}. Scene description: ${sceneDesc}. Key actions: ${stepsDesc}.`;
             }).filter(Boolean);
 
-            if (imagePrompts.length < 1) { // Can be 1, 2, or 3 scenes
+            if (imagePrompts.length < 1) {
                 throw new Error("Gagal membuat prompt gambar dari JSON yang dihasilkan.");
             }
             
@@ -606,7 +673,6 @@ const App: React.FC = () => {
         } finally {
             setIsJsonImageLoading(false);
         }
-        // --- End of auto-image generation ---
 
     } catch (err) {
         handleApiError(err, setJsonError);
@@ -671,32 +737,166 @@ const App: React.FC = () => {
   const handleUseImageForVideo = (imageUrl: string) => {
     handleToolChange('film');
     setVideoUploadedImage(imageUrl);
-    window.scrollTo(0, 0); // Scroll to top for better UX
+    window.scrollTo(0, 0);
   };
 
   const handleToolChange = (newTool: string) => {
     if (activeTool === newTool) {
-      setIsSidebarOpen(false); // Close even if mode is the same
+      setIsSidebarOpen(false);
       return;
     }
     setIsFading(true);
-    setIsSidebarOpen(false); // Close sidebar on mode change
+    setIsSidebarOpen(false);
     setTimeout(() => {
       setActiveTool(newTool);
       setIsFading(false);
     }, 200);
   };
 
-  const handleLogin = (email: string) => {
-    localStorage.setItem('genovaUserEmail', email);
-    setUserEmail(email);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('genovaUserEmail');
-    setUserEmail(null);
+  const handleLogout = async () => {
+    await authService.logout();
     setIsApiKeySelected(false);
   };
+
+    const handleAffiliateFileChange = (
+        e: React.ChangeEvent<HTMLInputElement>,
+        setter: React.Dispatch<React.SetStateAction<any>>,
+        isMultiple: boolean = false,
+        limit?: number
+    ) => {
+        const files = e.target.files;
+        if (!files) return;
+
+        const fileArray = Array.from(files);
+        
+        const readAndSet = (file: File) => {
+            return new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    resolve(reader.result as string);
+                };
+                reader.readAsDataURL(file);
+            });
+        };
+
+        Promise.all(fileArray.map(readAndSet)).then(base64Files => {
+            if (isMultiple) {
+                setter((prev: string[]) => {
+                    const newFiles = [...prev, ...base64Files];
+                    return limit ? newFiles.slice(0, limit) : newFiles;
+                });
+            } else {
+                setter(base64Files[0] || null);
+            }
+        });
+
+        // Clear the input value to allow re-uploading the same file
+        if(e.target) e.target.value = '';
+    };
+
+    const handleSupportingFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files) return;
+
+        const fileArray = Array.from(files);
+
+        const readAsDataURL = (file: File): Promise<string> => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.readAsDataURL(file);
+            });
+        };
+
+        Promise.all(fileArray.map(readAsDataURL)).then(base64Urls => {
+            const newPhotos = base64Urls.map(url => ({ url, description: '' }));
+            setSupportingProductPhotos(prev => [...prev, ...newPhotos]);
+        });
+
+        if (e.target) {
+            e.target.value = '';
+        }
+    };
+
+    const handleSupportingPhotoDescriptionChange = (index: number, description: string) => {
+        setSupportingProductPhotos(prev => 
+            prev.map((photo, i) => i === index ? { ...photo, description } : photo)
+        );
+    };
+
+    const removeSupportingPhoto = (index: number) => {
+        setSupportingProductPhotos(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const removeModelPhoto = (index: number) => {
+        setModelPhotos(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleGenerateAffiliateContent = useCallback(async () => {
+    if (!mainProductPhoto) return;
+
+    setIsAffiliateLoading(true);
+    setAffiliateError(null);
+    setAffiliateBrollPhotos([]);
+    setAffiliateUgcPhotos([]);
+    setAffiliateCommercialPhotos([]);
+
+    try {
+      const allReferenceImages = [
+        mainProductPhoto,
+        ...supportingProductPhotos.map(p => p.url),
+        ...modelPhotos
+      ].filter((img): img is string => !!img);
+
+      const basePrompt = `
+        Product & Concept: "${productConcept}".
+        Reference images provided show the main product, supporting angles, and model (if any).
+        AI Model characteristics: Type ${aiModelType}, Age ${aiModelAge}${isHijabModel ? ', wearing Hijab' : ''}.
+        Aspect Ratio: ${affiliateAspectRatio}.
+        Ad Type: ${affiliateAdType}.
+        Language for text overlay (if any): ${narrationLanguage}.
+        ${addTextOverlay ? 'The final image SHOULD include relevant text overlay.' : 'The final image should NOT include any text overlay.'}
+        Voice Accent for narration context: ${voiceAccent}.
+      `;
+
+      const generateImageSet = async (style: string) => {
+        const stylePrompt = `
+          Generate 4 realistic photos for an affiliate marketing campaign with a "${style}" style.
+          ${basePrompt}
+          For the "${style}" style, ensure the output has these qualities:
+          - B-Roll: Cinematic, detailed shots, often close-ups or showing the product in a lifestyle context. Focus on aesthetics.
+          - UGC (User-Generated Content): Authentic, casual, as if taken by a real customer with a smartphone. Can have minor imperfections.
+          - Commercial: Polished, professional, well-lit, studio-quality, suitable for a high-end advertisement.
+        `;
+        // We'll generate 4 images by calling the service 4 times in parallel
+        const promises = Array(4).fill(0).map(() => 
+            generateAffiliateImageFromRefs(stylePrompt, allReferenceImages)
+        );
+        return await Promise.all(promises);
+      };
+
+      // Run all generations in parallel
+      const [broll, ugc, commercial] = await Promise.all([
+        generateImageSet('B-Roll'),
+        generateImageSet('UGC'),
+        generateImageSet('Commercial')
+      ]);
+
+      setAffiliateBrollPhotos(broll);
+      setAffiliateUgcPhotos(ugc);
+      setAffiliateCommercialPhotos(commercial);
+
+    } catch (err) {
+      handleApiError(err, setAffiliateError);
+    } finally {
+      setIsAffiliateLoading(false);
+    }
+  }, [
+    mainProductPhoto, supportingProductPhotos, modelPhotos, productConcept, addTextOverlay,
+    aiModelType, aiModelAge, isHijabModel, affiliateAspectRatio, affiliateAdType,
+    narrationLanguage, voiceAccent
+  ]);
+
 
   const JsonBlock: React.FC<{ title: string, data: any, blockIndex: number }> = ({ title, data, blockIndex }) => {
     const currentTexts = STRUCTURED_PROMPT_TEXTS[jsonPromptLanguage];
@@ -941,7 +1141,6 @@ const App: React.FC = () => {
       </button>
        {!isApiKeySelected && <p className="text-center text-yellow-400 text-xs mt-2">Pilih Kunci API di sidebar untuk mengaktifkan tombol ini.</p>}
 
-      {/* Image Output Section */}
       {(isLoading || generatedImages || error) && (
         <div className="mt-6">
           <ImageDisplay 
@@ -949,7 +1148,6 @@ const App: React.FC = () => {
             isLoading={isLoading}
             error={error}
             aspectRatio={aspectRatio}
-            // FIX: Corrected typo from handleUseForVideo to handleUseImageForVideo
             onUseForVideo={handleUseImageForVideo}
           />
         </div>
@@ -1059,7 +1257,6 @@ const App: React.FC = () => {
 
       <div className="pt-6 border-t border-white/10" />
 
-      {/* --- Structured Prompt Generator --- */}
       <DnaInputSection 
         title={currentTexts.title} 
         description={currentTexts.description}
@@ -1138,7 +1335,6 @@ const App: React.FC = () => {
         )}
       </DnaInputSection>
 
-      {/* --- Image output for structured prompt --- */}
        {(isJsonImageLoading || jsonImageError || jsonGeneratedImages) && (
             <DnaInputSection title="Visual Referensi Adegan" description="Gambar yang dihasilkan AI berdasarkan setiap adegan dari prompt JSON.">
                 {isJsonImageLoading && <p className="text-gray-400">Menghasilkan visual adegan...</p>}
@@ -1158,7 +1354,6 @@ const App: React.FC = () => {
 
       <div className="pt-6 border-t border-white/10" />
 
-      {/* --- Simple Video Generator --- */}
       <DnaInputSection title="Prompt Video Final (Mode Sederhana)" description="Gunakan kontrol di bawah ini untuk membuat prompt video sederhana. Ini tidak menggunakan generator JSON di atas.">
         <p className="text-gray-400 bg-black/20 p-4 rounded-md text-sm leading-relaxed min-h-[100px]">
             {finalVideoPrompt}
@@ -1174,7 +1369,6 @@ const App: React.FC = () => {
       </button>
       {!isApiKeySelected && <p className="text-center text-yellow-400 text-xs mt-2">Pilih Kunci API di sidebar untuk mengaktifkan tombol ini.</p>}
 
-      {/* Video Output Section */}
       <div className="mt-6">
         {isVideoLoading && (
             <div className="flex flex-col items-center justify-center gap-4 text-gray-400 p-4 bg-black/20 rounded-lg border-2 border-dashed border-white/10 min-h-[200px]">
@@ -1213,59 +1407,260 @@ const App: React.FC = () => {
       </div>
   );
   
-  const AIGeneratorIcon: React.FC = () => (
-      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="brain-gradient" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#A855F7" />
-            <stop offset="100%" stopColor="#2DD4BF" />
-          </linearGradient>
-        </defs>
-        <path d="M9.5 2.5C6.5 2.5 4.5 4.5 4.5 7.5C4.5 9.5 5.5 11.5 7.5 12.5C7.5 13.5 7.5 14.5 6.5 15.5C4.5 16.5 2.5 18.5 2.5 21.5" stroke="url(#brain-gradient)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M14.5 2.5C17.5 2.5 19.5 4.5 19.5 7.5C19.5 9.5 18.5 11.5 16.5 12.5C16.5 13.5 16.5 14.5 17.5 15.5C19.5 16.5 21.5 18.5 21.5 21.5" stroke="url(#brain-gradient)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M12 10.5C11.5 12.5 12.5 14.5 12 16.5C11.5 18.5 10.5 19.5 9.5 21.5" stroke="url(#brain-gradient)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M12 10.5C12.5 12.5 11.5 14.5 12 16.5C12.5 18.5 13.5 19.5 14.5 21.5" stroke="url(#brain-gradient)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M7.5 12.5C8.5 11.5 9.5 10.5 12 10.5" stroke="url(#brain-gradient)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M16.5 12.5C15.5 11.5 14.5 10.5 12 10.5" stroke="url(#brain-gradient)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
+  const renderAffiliateGenerator = () => (
+    <div>
+        <div className="mb-8">
+            <h2 className="text-3xl font-bold text-white">AFFILIATE Content Generator</h2>
+            <p className="text-gray-400 mt-1">Buat konten affiliate bisa dengan rebahan.</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-1 flex flex-col gap-8">
+                {/* 1. Main and Supporting Product Photos */}
+                <div className="p-6 bg-black/20 rounded-xl border border-white/10">
+                    <h3 className="font-semibold text-lg text-white mb-1">1. Unggah Foto Produk</h3>
+                    <p className="text-sm text-gray-400 mb-4">Unggah Foto Produk (Utama)</p>
+                    <div className="flex items-center gap-4 mb-4">
+                        <button onClick={() => mainProductPhotoRef.current?.click()} className="px-5 py-2 text-sm font-semibold text-white rounded-lg bg-gradient-to-r from-purple-600 to-teal-500 hover:from-purple-700 hover:to-teal-600 transition-all">
+                            Choose file
+                        </button>
+                        <span className="text-sm text-gray-500">{mainProductPhoto ? '1 file chosen' : 'No file chosen'}</span>
+                        <input
+                            ref={mainProductPhotoRef}
+                            type="file"
+                            className="hidden"
+                            accept="image/*"
+                            onChange={(e) => handleAffiliateFileChange(e, setMainProductPhoto)}
+                        />
+                    </div>
+                    {mainProductPhoto ? (
+                        <div className="relative aspect-video bg-black/30 rounded-lg overflow-hidden">
+                            <img src={mainProductPhoto} alt="Pratinjau Foto Produk" className="w-full h-full object-contain" />
+                             <button onClick={() => setMainProductPhoto(null)} className="absolute top-2 right-2 p-1.5 bg-black/50 rounded-full text-white hover:bg-red-500/80 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                             </button>
+                        </div>
+                    ) : (
+                        <div className="aspect-video w-full flex items-center justify-center bg-white/5 border-2 border-dashed border-white/10 rounded-lg">
+                            <p className="text-gray-500">Pratinjau Foto Produk</p>
+                        </div>
+                    )}
+
+                    <div className="pt-6 mt-6 border-t border-white/10">
+                        <h4 className="font-semibold text-md text-white mb-4">Foto Produk Pendukung</h4>
+                        {supportingProductPhotos.length > 0 && (
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                                {supportingProductPhotos.map((photo, index) => (
+                                    <div key={index} className="flex flex-col gap-3 p-4 bg-black/30 rounded-lg border border-white/10">
+                                        <div className="flex justify-between items-center">
+                                            <h5 className="text-sm font-semibold text-white">Foto Produk Pendukung #{index + 1}</h5>
+                                            <button onClick={() => removeSupportingPhoto(index)} className="text-red-500 hover:text-red-400 text-xs font-semibold flex items-center gap-1 transition-colors">
+                                                <span>Hapus Foto</span>
+                                                <span className="text-lg leading-none">&times;</span>
+                                            </button>
+                                        </div>
+                                        <div className="relative aspect-video bg-black/30 rounded-lg overflow-hidden">
+                                            <img src={photo.url} alt={`Pendukung ${index + 1}`} className="w-full h-full object-contain" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-400 mb-1.5">
+                                                Jelaskan foto pendukung (misal: "bagian belakang baju")
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={photo.description}
+                                                onChange={(e) => handleSupportingPhotoDescriptionChange(index, e.target.value)}
+                                                placeholder="TAMPAK atas"
+                                                className="w-full bg-white/5 text-white rounded-md p-2.5 text-sm border border-white/10 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition"
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <button onClick={() => supportingProductPhotosRef.current?.click()} className="w-full text-center py-3 bg-white/10 border border-white/10 rounded-lg text-white hover:bg-white/20 transition-colors">
+                            + Tambah Foto Produk Pendukung
+                        </button>
+                        <input
+                            ref={supportingProductPhotosRef}
+                            type="file"
+                            className="hidden"
+                            accept="image/*"
+                            multiple
+                            onChange={handleSupportingFileChange}
+                        />
+                    </div>
+                </div>
+
+                {/* 2. Jelaskan Produk & Konsep Foto */}
+                <div className="p-6 bg-black/20 rounded-xl border border-white/10">
+                    <h3 className="font-semibold text-lg text-white mb-2">2. Jelaskan Produk & Konsep Foto</h3>
+                    <textarea
+                        value={productConcept}
+                        onChange={(e) => setProductConcept(e.target.value)}
+                        placeholder="Contoh: Ini adalah produk skincare serum pencerah untuk wanita usia 20-30 tahun. Konsep foto adalah aesthetic, clean, dan minimalis dengan pencahayaan alami."
+                        rows={4}
+                        className="w-full bg-white/5 text-white rounded-md p-3 border border-white/10 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition resize-y"
+                    />
+                    <div className="mt-6 pt-6 border-t border-white/10 flex justify-between items-center">
+                        <div>
+                            <h4 className="font-semibold text-md text-white">Tambahkan Tulisan pada Hasil</h4>
+                            <p className="text-sm text-gray-400">(optional)</p>
+                        </div>
+                        <label htmlFor="add-text-toggle" className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                                type="checkbox" 
+                                id="add-text-toggle" 
+                                className="sr-only peer"
+                                checked={addTextOverlay}
+                                onChange={(e) => setAddTextOverlay(e.target.checked)}
+                            />
+                            <div className="w-11 h-6 bg-gray-600 rounded-full peer peer-focus:ring-2 peer-focus:ring-teal-500 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                        </label>
+                    </div>
+                </div>
+
+                {/* 3. Model Photos & AI Characteristics */}
+                <div className="p-6 bg-black/20 rounded-xl border border-white/10">
+                    <h3 className="font-semibold text-lg text-white mb-1">3. Unggah Foto Model</h3>
+                    <p className="text-sm text-gray-400 mb-4">(optional, maks 2)</p>
+                     {modelPhotos.length > 0 && (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            {modelPhotos.map((photo, index) => (
+                                <div key={index} className="relative aspect-square group">
+                                    <img src={photo} alt={`Model ${index + 1}`} className="w-full h-full object-cover rounded-lg" />
+                                     <button onClick={() => removeModelPhoto(index)} className="absolute top-1 right-1 p-1.5 bg-black/50 rounded-full text-white opacity-0 group-hover:opacity-100 hover:bg-red-500/80 transition-all">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    {modelPhotos.length < 2 && (
+                        <button onClick={() => modelPhotosRef.current?.click()} className="w-full text-center py-3 bg-white/10 border border-white/10 rounded-lg text-white hover:bg-white/20 transition-colors mb-6">
+                            + Tambah Model
+                        </button>
+                    )}
+                    <input
+                        ref={modelPhotosRef}
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => handleAffiliateFileChange(e, setModelPhotos, true, 2)}
+                    />
+                    <div className="flex flex-col gap-4 pt-4 border-t border-white/10">
+                        <h4 className="font-semibold text-md text-white">Karakteristik Model AI</h4>
+                        <CustomSelect
+                            value={aiModelType}
+                            onChange={setAiModelType}
+                            options={AI_MODEL_TYPES}
+                        />
+                        <CustomSelect
+                            value={aiModelAge}
+                            onChange={setAiModelAge}
+                            options={AI_MODEL_AGES}
+                        />
+                        <label htmlFor="hijab-checkbox" className="flex items-center gap-3 cursor-pointer text-sm text-gray-300">
+                            <input
+                                type="checkbox"
+                                id="hijab-checkbox"
+                                checked={isHijabModel}
+                                onChange={(e) => setIsHijabModel(e.target.checked)}
+                                className="w-4 h-4 text-teal-500 bg-white/10 border-white/20 rounded focus:ring-teal-500"
+                            />
+                            <span>Model Berjilbab?</span>
+                        </label>
+                    </div>
+                </div>
+
+                {/* 4. Ratio */}
+                <div className="p-6 bg-black/20 rounded-xl border border-white/10">
+                    <h3 className="font-semibold text-lg text-white mb-2">4. Pilih Rasio</h3>
+                    <CustomSelect
+                        value={affiliateAspectRatio}
+                        onChange={setAffiliateAspectRatio}
+                        options={AFFILIATE_ASPECT_RATIOS}
+                    />
+                </div>
+
+                {/* 5. Ad Type */}
+                <div className="p-6 bg-black/20 rounded-xl border border-white/10">
+                    <h3 className="font-semibold text-lg text-white mb-2">5. Pilih Tipe Iklan</h3>
+                    <CustomSelect
+                        value={affiliateAdType}
+                        onChange={setAffiliateAdType}
+                        options={AFFILIATE_AD_TYPES}
+                    />
+                </div>
+
+                 {/* 6. Language & Accent Settings */}
+                <div className="p-6 bg-black/20 rounded-xl border border-white/10">
+                    <h3 className="font-semibold text-lg text-white mb-2">6. Pengaturan Bahasa & Aksen</h3>
+                    <div className="flex flex-col gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-400 mb-2">Bahasa Narasi & Caption</label>
+                            <CustomSelect
+                                value={narrationLanguage}
+                                onChange={setNarrationLanguage}
+                                options={AFFILIATE_LANGUAGES}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-400 mb-2">Aksen Suara (Opsional, untuk Narasi)</label>
+                            <input
+                                type="text"
+                                value={voiceAccent}
+                                onChange={(e) => setVoiceAccent(e.target.value)}
+                                placeholder="Contoh: Jawa medok, Batak, British English"
+                                className="w-full bg-white/5 text-white rounded-md p-3 border border-white/10 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Generate Button */}
+                 <button
+                    onClick={handleGenerateAffiliateContent}
+                    disabled={!mainProductPhoto || isAffiliateLoading || !isApiKeySelected}
+                    className="w-full py-3 px-6 text-lg font-semibold text-white rounded-xl bg-gradient-to-r from-purple-600 to-teal-500 hover:from-purple-700 hover:to-teal-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg transform hover:scale-105"
+                >
+                    {isAffiliateLoading ? 'Menghasilkan...' : 'Generate Konten'}
+                </button>
+
+
+            </div>
+
+            <div className="lg:col-span-2 flex flex-col gap-6">
+                 <AffiliateResultSection 
+                    title="Foto B-Roll" 
+                    images={affiliateBrollPhotos} 
+                    isLoading={isAffiliateLoading} 
+                 />
+                 <AffiliateResultSection 
+                    title="Foto UGC" 
+                    images={affiliateUgcPhotos} 
+                    isLoading={isAffiliateLoading} 
+                 />
+                 <AffiliateResultSection 
+                    title="Foto Komersial" 
+                    images={affiliateCommercialPhotos} 
+                    isLoading={isAffiliateLoading}
+                 />
+                 {affiliateError && !isAffiliateLoading && (
+                     <div className="p-4 bg-red-900/20 rounded-xl border border-red-500/30 text-center">
+                         <p className="font-semibold text-red-400">Terjadi Kesalahan</p>
+                         <p className="text-sm text-red-400/80 mt-1">{affiliateError}</p>
+                     </div>
+                 )}
+            </div>
+        </div>
+    </div>
   );
 
   const renderDashboard = () => (
     <div className="p-4 md:p-6 bg-black/20 rounded-2xl border border-white/10 backdrop-blur-xl">
-        <div className="bg-gradient-to-br from-white/10 to-transparent p-6 rounded-2xl border border-white/10 mb-10">
-            <div className="flex flex-col md:flex-row items-center gap-6">
-                <AIGeneratorIcon />
-                <div className="flex-grow text-center md:text-left">
-                    <h2 className="text-2xl font-bold text-white">AI Generator</h2>
-                    <p className="text-gray-400 mt-1">Generate creative content with AI</p>
-                </div>
-                <button 
-                  onClick={() => handleToolChange('gambar')}
-                  className="w-full md:w-auto px-8 py-3 font-semibold text-white rounded-xl bg-slate-800 hover:bg-slate-700 transition-all duration-300 shadow-lg ring-1 ring-inset ring-teal-500/50 hover:ring-teal-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-teal-500">
-                    Generate
-                </button>
-            </div>
-        </div>
-
-        <div>
-            <h2 className="text-2xl font-bold text-white mb-4">Recent Projects</h2>
-            <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-4 p-4 bg-white/5 rounded-xl border border-white/10">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-teal-600 flex-shrink-0"></div>
-                    <div className="flex-grow">
-                        <p className="font-semibold text-white">Project Alpha</p>
-                        <p className="text-sm text-gray-400">Updated 2 hours ago</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-4 p-4 bg-white/5 rounded-xl border border-white/10">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-teal-500 flex-shrink-0"></div>
-                    <div className="flex-grow">
-                        <p className="font-semibold text-white">Project Beta</p>
-                        <p className="text-sm text-gray-400">Updated 1 day ago</p>
-                    </div>
-                </div>
-            </div>
-        </div>
+        {renderAffiliateGenerator()}
     </div>
   );
 
@@ -1273,7 +1668,7 @@ const App: React.FC = () => {
     'dashboard': {
         renderer: renderDashboard,
         title: "Dashboard",
-        description: "Welcome to MuzeGen AI."
+        description: "Selamat datang di MuzeGen AI."
     },
     'gambar': {
         renderer: renderProductGenerator,
@@ -1300,13 +1695,19 @@ const App: React.FC = () => {
     { id: 'community', label: 'Community Hub', icon: <IconCommunity /> },
   ];
   
-  const bottomMenuItems = [
-    { id: 'settings', label: 'Settings', icon: <IconSettings />, action: handleSelectKey },
-    { id: 'profile', label: 'Profile', icon: <IconProfile />, action: handleLogout, isLogout: true },
-  ]
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-white">
+        <svg className="animate-spin h-10 w-10 text-teal-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+      </div>
+    );
+  }
   
-  if (!userEmail) {
-    return <Login onLogin={handleLogin} />;
+  if (!user) {
+    return <Login />;
   }
 
   return (
@@ -1327,7 +1728,6 @@ const App: React.FC = () => {
       )}
 
       <aside className={`fixed top-0 left-0 h-full w-[226px] backdrop-blur-xl z-40 flex flex-col rounded-br-2xl transition-transform duration-300 ease-in-out md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        {/* Top Section */}
         <div className="h-[4.5rem] px-6 flex items-center">
           <div className="flex items-center gap-3">
             <img src={LOGO_BASE64} alt="MuzeGen AI Logo" style={{ width: 40, height: 40 }} />
@@ -1338,7 +1738,6 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Main scrolling content with right border */}
         <div className="flex-grow flex flex-col p-6 overflow-y-auto">
           <nav className="flex-grow flex flex-col gap-2">
               {menuItems.map(item => (
@@ -1359,23 +1758,44 @@ const App: React.FC = () => {
 
           <div className="flex flex-col gap-2 pt-4">
               <div className="w-11/12 self-center h-px bg-white/10 mb-2" />
-              <div className="px-4 py-2 text-sm text-gray-500">
-                  <p>Masuk sebagai:</p>
-                  <p className="font-medium text-gray-300 truncate">{userEmail}</p>
-              </div>
               
-              {bottomMenuItems.map(item => (
+              <button 
+                  onClick={handleSelectKey}
+                  className="w-full flex items-center justify-between gap-4 px-4 py-3 rounded-lg text-left text-base font-medium transition-all duration-200 group text-gray-400 hover:bg-white/5 hover:text-white"
+              >
+                  <div className="flex items-center gap-4">
+                      <IconSettings />
+                      <span>API Key</span>
+                  </div>
+                  {isApiKeySelected ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-teal-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                  ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 110-2 1 1 0 010 2zm-1-4a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clipRule="evenodd" />
+                      </svg>
+                  )}
+              </button>
+
+              <div className="mt-4 p-3 bg-black/20 rounded-lg flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 overflow-hidden">
+                      <UserProfileIcon email={user.email} />
+                      <div className="flex-grow overflow-hidden">
+                          <p className="font-medium text-sm text-gray-300 truncate">{user.email}</p>
+                          <p className="text-xs text-gray-500">Online</p>
+                      </div>
+                  </div>
                   <button 
-                      key={item.id}
-                      onClick={item.action}
-                      className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg text-left text-base font-medium transition-all duration-200 group ${
-                        item.isLogout ? 'text-gray-400 hover:bg-red-500/10 hover:text-red-400' : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                      }`}
+                      onClick={handleLogout}
+                      className="group p-2 rounded-md hover:bg-red-500/10 transition-colors"
+                      aria-label="Logout"
                   >
-                      <span className={item.isLogout ? "text-gray-400 group-hover:text-red-400" : "text-gray-400 group-hover:text-white"}>{item.icon}</span>
-                      <span>{item.label}</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 group-hover:text-red-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
                   </button>
-              ))}
+              </div>
           </div>
         </div>
       </aside>

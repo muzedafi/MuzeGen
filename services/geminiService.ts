@@ -1,4 +1,5 @@
 
+
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 
 const handleError = (error: unknown, context: string): never => {
@@ -526,5 +527,76 @@ export const generateSingleImage = async (prompt: string, aspectRatio: string): 
 
   } catch (error) {
     handleError(error, 'single image generation from text');
+  }
+};
+
+/**
+ * Generates an image for the affiliate tool from multiple reference images and a prompt.
+ * @param prompt The text prompt describing the desired output.
+ * @param referenceImages An array of base64 data URLs for reference images.
+ * @returns A promise that resolves to a base64 data URL of the generated image.
+ */
+export const generateAffiliateImageFromRefs = async (prompt: string, referenceImages: string[]): Promise<string> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  try {
+    const imageParts = referenceImages.map(base64Url => {
+        const match = base64Url.match(/^data:(.+);base64,(.+)$/);
+        if (!match) {
+            throw new Error("Invalid base64 image data URL format in reference images.");
+        }
+        return { inlineData: { mimeType: match[1], data: match[2] } };
+    });
+
+    const textPart = { text: prompt };
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [...imageParts, textPart],
+      },
+      config: {
+        responseModalities: [Modality.IMAGE],
+      },
+    });
+
+    const candidate = response.candidates?.[0];
+
+    for (const part of candidate?.content?.parts || []) {
+      if (part.inlineData) {
+        const base64ImageBytes: string = part.inlineData.data;
+        return `data:${part.inlineData.mimeType};base64,${base64ImageBytes}`;
+      }
+    }
+
+    let errorMessage = "Tidak ada data gambar yang ditemukan dalam respons API.";
+    if (candidate) {
+        switch (candidate.finishReason) {
+            case 'SAFETY':
+                errorMessage = "Pembuatan gambar diblokir karena kebijakan keamanan. Coba ubah prompt atau gambar referensi Anda.";
+                break;
+            case 'RECITATION':
+                 errorMessage = "Pembuatan gambar diblokir karena terdeteksi kutipan. Harap ubah prompt Anda.";
+                 break;
+            case 'OTHER':
+                 errorMessage = `Model berhenti karena alasan yang tidak terduga${candidate.finishMessage ? `: ${candidate.finishMessage}` : '.'}`;
+                 break;
+            default:
+                if (response.text) {
+                    errorMessage = `Model merespons dengan teks alih-alih gambar: "${response.text}"`;
+                } else {
+                     errorMessage += " Model mungkin tidak dapat memenuhi permintaan tersebut.";
+                }
+                break;
+        }
+    } else if (response.text) {
+        errorMessage = `Model merespons dengan teks alih-alih gambar: "${response.text}"`;
+    } else if (!response.candidates || response.candidates.length === 0) {
+        errorMessage = "API tidak mengembalikan kandidat respons. Ini mungkin karena pemicu filter keamanan atau masalah internal model.";
+    }
+    
+    throw new Error(errorMessage);
+
+  } catch (error) {
+    handleError(error, 'affiliate image generation');
   }
 };
