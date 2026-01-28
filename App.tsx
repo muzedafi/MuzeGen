@@ -1,18 +1,15 @@
 
-
-
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { generateImageFromText, editImageWithPrompt, getPromptFeedback, getSmartSuggestions, generateVideoFromPrompt, generateDialogueScript, generateJsonPrompt, analyzeImageForMovement, generateSingleImage, generateAffiliateImageFromRefs } from './services/geminiService';
+import { generateImageFromText, editImageWithPrompt, getPromptFeedback, getSmartSuggestions, generateVideoFromPrompt, generateDialogueScript, generateJsonPrompt, analyzeImageForMovement, generateSingleImage, generateAffiliateImageFromRefs, generateProductConcept, generateImageWithMultipleRefs } from './services/geminiService';
 import { authService } from './services/authService';
 import { useAuth } from './hooks/useAuth';
-// Fix: Corrected typo from AFFiliate_LANGUAGES to AFFILIATE_LANGUAGES
 import { ART_STYLES, COLOR_PALETTES, ASPECT_RATIOS, ENVIRONMENT_OPTIONS, RESOLUTION_OPTIONS, BLUR_OPTIONS, CAMERA_ANGLES, LIGHTING_STYLES, TIME_OPTIONS, VIDEO_STYLES, CAMERA_MOVEMENTS, VIDEO_RESOLUTIONS, VIDEO_LANGUAGES, VOICE_GENDERS, SPEAKING_STYLES, VIDEO_MOODS, MOVEMENT_OPTIONS, STRUCTURED_PROMPT_TEXTS, DIALOGUE_STYLES, DIALOGUE_TEMPOS, VIDEO_CONCEPTS, AI_MODEL_TYPES, AI_MODEL_AGES, AFFILIATE_ASPECT_RATIOS, AFFILIATE_AD_TYPES, AFFILIATE_LANGUAGES } from './constants';
 import DnaInputSection from './components/DnaInputSection';
 import SelectableTags from './components/SelectableTags';
 import ImageDisplay from './components/ImageDisplay';
 import Login from './components/Login';
 import CustomSelect from './components/CustomSelect';
+import ImageCropModal from './components/ImageCropModal';
 
 
 /**
@@ -68,7 +65,7 @@ const processImageToAspectRatio = (
   });
 };
 
-const LOGO_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAMAAABHPGVmAAAASFBMVEUAAAD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igAojv8eAAAAGHRSTlMAAQIDBAUGBwgJCgsMDQ4PEBslQiYqAAADLklEQVR42u2c25qqMBBGJQkiCCoouHr/l/y2BBPKKDEz3czs/T9s1x5KmslMZiYAgGAY3vF4vL58Z9qthL3xYh3JPhfX/b/KfsP+jK/9yfYXT7b/pM5p234y9Zq+f6Tty1r5OwBOP9j6f7Zt/5Hif9jkv7bu/2vhfwXw/zrwv8Dwv8DwX8LwX8LwX8LwX8bwT8bwn4zw34z/L8H/l+D/S/B/IfqfBfyfBvxPBvwPBvyPBvxvAf+fBP+fBPyfBvyfBPyfBPyfBP+/BP6/BPyfBP6/hP/fkv9fkv8/Jf9/S/4/y/4/y/4/y/4/y/5/yP4/yP5/yP4/yP5/yP6/w/7/wP6/w/7/wP5/w/5/w/7/wP6/Q/9/Q/9/Q/9/Q/9/Q/9/RP9/RP9/RP9/RP9/RP9/hP9/hP9/hP9/hP9/hP9/xP9/xP9/xP9/xP9/xP8v6f/L+n/y/p/8v6f/L+n/S/p/0v6f9L+n/S/p/0v6f9P8X9f8X9f8X9f8X9f8X9f8X9f8b+v8b+v8b+v8b+v8b+v8b+v8j+v8j+v8j+v8j+v8j+v8j+v8j+v8r+v8r+v8r+v8r+v8r+v8r+v8z+v8z+v8z+v8z+v8z+v8z+v8z+v8D/f8A/f8A/f8A/f8A/f8A/f8B/f8B/f8B/f8B/f8B/f8B/f8D//8A//8A//8A//8A//8A//8A//8A/+f8n/N/zv85/+f8n/N/zv+v8H9F8L+i+B9R/I8o/kcE/yOC/xHB/4jgv8PwL8PwC8MvDL8w/MLwC8MvjH8M4x/D+Mew/DGMf4zhH8P4xzD+8X/v4/+u7/+67/96+L+m8F9T+K8p/FcV/quKf1XBv6rgv6XwX1L4Lyl8V5T+Kgp/FcG/qvi/pvBfE/ivCfxXBP4rAv+VwH8p8L+0+F8B/L8O/C/g/wt/v/59/j77x+Px+PLzBxG5Yv1H+QGgAAAAAElFTkSuQmCC';
+const LOGO_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAMAAABHPGVmAAAASFBMVEUAAAD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igD/igAojv8eAAAAGHRSTlMAAQIDBAUGBwgJCgsMDQ4PEBslQiYqAAADLklEQVR42u2c25qqMBBGJQkiCCoouHr/l/y2BBPKKDEz3czs/T9s1x5KmslMZiYAgGAY3vF4vL58Z9qthL3xYh3JPhfX/b/KfsP+jK/9yfYXT7b/pM5p234y9Zq+f6Tty1r5OwBOP9j6f7Zt/5Hif9jkv7bu/2vhfwXw/zrwv8Dwv8DwX8LwX8LwX8LwX8bwT8bwn4zw34z/L8H/l+D/S/B/IfqfBfyfBvxPBvwPBvyPBvxvAf+fBP+fBPyfBvyfBPyfBPyfBP+/BP6/BPyfBP6/hP/fkv9fkv8/Jf9/S/4/y/4/y/4/y/4/y/5/yP4/yP5/yP4/yP5/yP6/w/7/wP6/w/7/wP5/w/5/w/7/wP6/Q/9/Q/9/Q/9/Q/9/Q/9/RP9/RP9/RP9/RP9/RP9/hP9/hP9/hP9/hP9/hP9/xP9/xP9/xP9/xP9/xP8v6f/L+n/y/p/8v6f/L+n/S/p/0v6f9L+n/S/p/0v6f9P8X9f8X9f8X9f8X9f8X9f8X9f8b+v8b+v8b+v8b+v8b+v8b+v8j+v8j+v8j+v8j+v8j+v8j+v8j+v8r+v8r+v8r+v8r+v8r+v8r+v8z+v8z+v8z+v8z+v8z+v8z+v8z+v8D/f8A/f8A/f8A/f8A/f8A/f8B/f8B/f8B/f8B/f8B/f8B/f8D//8A//8A//8A//8A//8A//8A//8A/+f8n/N/zv85/+f8n/N/zv+v8H9F8L+i+B9R/I8o/kcE/yOC/xHB/4jgv8PwL8PwC8MvDL8w/MLwC8MvjH8M4x/D+Mew/DGMf4zhH8P4xzD+8X/v4/+u7/+67/96+L+m8F9T+K8p/FcV/quKf1XBv6rgv6XwX1L4Lyl8V5T+Kgp/FcG/qvi/pvBfE/ivCfxXBP4rAv+VwH8p8L+0+F8B/L8O/C/g/wt/v/59/j77x+Px+PLzBxG5Yv1H+QGgAAAAAElFTkSuQmCC';
 
 // --- Icon Components ---
 const IconDashboard: React.FC = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>;
@@ -104,48 +101,187 @@ const UserProfileIcon: React.FC<{ email: string }> = ({ email }) => {
     );
 };
 
-const AffiliateResultSection: React.FC<{
+// Icons for Affiliate Result Section
+const IconEye: React.FC = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>;
+const IconDownload: React.FC = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>;
+const IconPencil: React.FC = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg>;
+const IconSparkles: React.FC = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm6 2a1 1 0 011 1v1h1a1 1 0 010 2h-1v1a1 1 0 01-2 0V8h-1a1 1 0 010-2h1V5a1 1 0 011-1zm-3 5a1 1 0 011 1v1h1a1 1 0 010 2h-1v1a1 1 0 01-2 0v-1H6a1 1 0 010-2h1v-1a1 1 0 011-1z" clipRule="evenodd" /><path d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" /></svg>;
+
+
+interface AffiliateResultSectionProps {
     title: string;
     images: string[];
     isLoading: boolean;
-}> = ({ title, images, isLoading }) => {
+    aspectRatio: string;
+    onImageUpdate: (index: number, newImageUrl: string) => void;
+    onSuggestMovement: (imageUrl: string, format: 'text' | 'json') => void;
+    isApiKeySelected: boolean;
+}
+
+const AffiliateResultSection: React.FC<AffiliateResultSectionProps> = ({ title, images, isLoading, aspectRatio, onImageUpdate, onSuggestMovement, isApiKeySelected }) => {
+    const [editingIndex, setEditingIndex] = useState<number | null>(null);
+    const [editPrompt, setEditPrompt] = useState('');
+    const [isEditingLoading, setIsEditingLoading] = useState<boolean>(false);
+    const [editingError, setEditingError] = useState<string | null>(null);
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [suggestionMenuIndex, setSuggestionMenuIndex] = useState<number | null>(null);
+    const suggestionMenuRef = useRef<HTMLDivElement>(null);
+    
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (suggestionMenuRef.current && !suggestionMenuRef.current.contains(event.target as Node)) {
+                setSuggestionMenuIndex(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
+    const getAspectRatioClass = (ratio: string) => {
+        switch (ratio) {
+            case '9:16': return 'aspect-[9/16]';
+            case '1:1': return 'aspect-square';
+            case '16:9': return 'aspect-video';
+            default: return 'aspect-square';
+        }
+    };
+    const aspectRatioClass = getAspectRatioClass(aspectRatio);
+
+    const handleDownload = (imageUrl: string, index: number) => {
+        const link = document.createElement('a');
+        link.href = imageUrl;
+        // Updated filename with MuzeGen AI branding
+        link.download = `MuzeGen-AI-affiliate-${title.toLowerCase().replace(/\s+/g, '-')}-${index + 1}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleEditSubmit = async () => {
+        if (editingIndex === null || !editPrompt) return;
+        setIsEditingLoading(true);
+        setEditingError(null);
+        try {
+            const originalImage = images[editingIndex];
+            const newImageUrl = await editImageWithPrompt(editPrompt, originalImage);
+            onImageUpdate(editingIndex, newImageUrl);
+            setEditingIndex(null);
+            setEditPrompt('');
+        } catch (error) {
+            setEditingError(error instanceof Error ? error.message : 'Gagal mengedit gambar.');
+        } finally {
+            setIsEditingLoading(false);
+        }
+    };
+
     const renderContent = () => {
-        if (isLoading) {
-            return (
-                <div className="aspect-video w-full flex items-center justify-center bg-white/5 border-2 border-dashed border-white/10 rounded-lg">
-                    <svg className="animate-spin h-8 w-8 text-teal-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                </div>
-            );
+        const placeholders = isLoading ? Array(Math.max(0, 4 - images.length)).fill(0) : [];
+        if (images.length === 0 && !isLoading) {
+            return <div className="aspect-video mt-2 bg-white/5 rounded-lg flex items-center justify-center text-gray-500 text-sm">Pratinjau</div>;
         }
-
-        if (images.length > 0) {
-            return (
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                    {images.map((img, index) => (
-                        <div key={index} className="aspect-square bg-black/30 rounded-lg overflow-hidden">
-                            <img src={img} alt={`${title} image ${index + 1}`} className="w-full h-full object-cover" />
-                        </div>
-                    ))}
-                </div>
-            );
-        }
-
-        // Default placeholder
+        
         return (
-            <div className="aspect-video mt-2 bg-white/5 rounded-lg flex items-center justify-center text-gray-500 text-sm">
-                Preview
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                {[...images, ...placeholders].map((img, index) => {
+                    if (index >= images.length) { // Render placeholders
+                         return (
+                            <div key={`loader-${index}`} className={`${aspectRatioClass} bg-white/5 rounded-lg flex items-center justify-center border-2 border-dashed border-white/10`}>
+                                 <svg className="animate-spin h-6 w-6 text-teal-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </div>
+                        );
+                    }
+                    // Render actual image cards
+                    return (
+                        <div key={index} className="flex flex-col gap-2">
+                             <div className={`relative group ${aspectRatioClass} bg-black/30 rounded-lg overflow-hidden border border-white/10`}>
+                                <img src={img} alt={`${title} image ${index + 1}`} className="w-full h-full object-cover" />
+                                
+                                {editingIndex !== index && (
+                                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-2">
+                                        <button onClick={() => setPreviewImage(img)} className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition"><IconEye /></button>
+                                        <button onClick={() => handleDownload(img, index)} className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition"><IconDownload /></button>
+                                        <button onClick={() => { setEditingIndex(index); setEditPrompt(''); setEditingError(null); }} className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition"><IconPencil /></button>
+                                     </div>
+                                )}
+                                
+                                {editingIndex === index && (
+                                     <div className="absolute inset-0 bg-black/80 p-3 flex flex-col justify-end gap-2">
+                                        {isEditingLoading ? (
+                                            <div className="flex items-center justify-center text-white"><svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" className="opacity-75"></path></svg> Mengedit...</div>
+                                        ) : (
+                                            <>
+                                                <input
+                                                    type="text"
+                                                    value={editPrompt}
+                                                    onChange={(e) => setEditPrompt(e.target.value)}
+                                                    placeholder="contoh: ubah warna baju jadi merah"
+                                                    className="w-full bg-white/10 text-white text-sm rounded-md p-2 border border-white/20 focus:ring-1 focus:ring-teal-400"
+                                                />
+                                                {editingError && <p className="text-red-400 text-xs text-center">{editingError}</p>}
+                                                <div className="flex gap-2">
+                                                    <button onClick={handleEditSubmit} className="flex-1 py-1.5 px-2 text-xs font-semibold rounded-md bg-teal-500 hover:bg-teal-600 text-white transition disabled:opacity-50" disabled={!editPrompt}>Ubah</button>
+                                                    <button onClick={() => setEditingIndex(null)} className="flex-1 py-1.5 px-2 text-xs font-semibold rounded-md bg-white/20 hover:bg-white/30 text-white transition">Batal</button>
+                                                </div>
+                                            </>
+                                        )}
+                                     </div>
+                                )}
+                            </div>
+                            <div className="relative" ref={suggestionMenuIndex === index ? suggestionMenuRef : null}>
+                                <button 
+                                    onClick={() => setSuggestionMenuIndex(prev => prev === index ? null : index)} 
+                                    disabled={!isApiKeySelected}
+                                    className="w-full text-xs font-semibold text-center py-2 bg-white/10 border border-transparent rounded-lg text-white hover:bg-white/20 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <IconSparkles/>
+                                    <span>Saran Prompt Gerakan</span>
+                                </button>
+                                {suggestionMenuIndex === index && (
+                                    <div className="absolute bottom-full mb-1 w-full bg-[#161324]/90 backdrop-blur-md border border-white/10 rounded-lg shadow-lg z-20 py-1">
+                                        <button
+                                            onClick={() => {
+                                                onSuggestMovement(img, 'text');
+                                                setSuggestionMenuIndex(null);
+                                            }}
+                                            className="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-white/10 transition-colors"
+                                        >
+                                            TEXT
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                onSuggestMovement(img, 'json');
+                                                setSuggestionMenuIndex(null);
+                                            }}
+                                            className="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-white/10 transition-colors"
+                                        >
+                                            JSON
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
         );
     };
 
     return (
-        <div className="p-4 bg-black/20 rounded-xl border border-white/10">
-            <h4 className="font-semibold text-gray-300">{title}</h4>
-            {renderContent()}
-        </div>
+        <>
+            <div className="p-4 bg-black/20 rounded-xl border border-white/10">
+                <h4 className="font-semibold text-gray-300">{title}</h4>
+                {renderContent()}
+            </div>
+             {previewImage && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setPreviewImage(null)}>
+                    <img src={previewImage} alt="Pratinjau" className="max-w-full max-h-full object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
+                </div>
+            )}
+        </>
     );
 };
 
@@ -177,10 +313,32 @@ const App: React.FC = () => {
   const [cameraAngle, setCameraAngle] = useState<string>('Tangkapan Sejajar Mata');
   const [lightingStyle, setLightingStyle] = useState<string>('Cahaya Latar');
   const [timeOfDay, setTimeOfDay] = useState<string>('Siang Hari');
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  
+  // New States for AI Generator multiple references
+  const [mainProductImage, setMainProductImage] = useState<string | null>(null);
+  const [supportingImages, setSupportingImages] = useState<(string | null)[]>([null, null, null]);
+  const [processedMainImage, setProcessedMainImage] = useState<string | null>(null);
+  const [processedSupportingImages, setProcessedSupportingImages] = useState<(string | null)[]>([null, null, null]);
+
+  // Model States
+  const [mainModelImage, setMainModelImage] = useState<string | null>(null);
+  const [supportingModelImage, setSupportingModelImage] = useState<string | null>(null);
+  const [processedMainModelImage, setProcessedMainModelImage] = useState<string | null>(null);
+  const [processedSupportingModelImage, setProcessedSupportingModelImage] = useState<string | null>(null);
+
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null); // Still used for Simple Edit mode and Film
   const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [removeBackground, setRemoveBackground] = useState<boolean>(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mainImageInputRef = useRef<HTMLInputElement>(null);
+  const supportInputRef1 = useRef<HTMLInputElement>(null);
+  const supportInputRef2 = useRef<HTMLInputElement>(null);
+  const supportInputRef3 = useRef<HTMLInputElement>(null);
+  const mainModelInputRef = useRef<HTMLInputElement>(null);
+  const supportModelInputRef = useRef<HTMLInputElement>(null);
+  const editReferenceInputRef = useRef<HTMLInputElement>(null);
+
   const [artStyleFilter, setArtStyleFilter] = useState<string>('');
 
   // --- VIDEO DNA States ---
@@ -248,6 +406,13 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  // --- Individual Regenerate State ---
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingImageIndex, setEditingImageIndex] = useState<number | null>(null);
+  const [editDetailPrompt, setEditDetailPrompt] = useState('');
+  const [editReferenceImage, setEditReferenceImage] = useState<string | null>(null);
+  const [isIndividualLoading, setIsIndividualLoading] = useState(false);
+
   // --- VIDEO Generation States ---
   const [finalVideoPrompt, setFinalVideoPrompt] = useState<string>('');
   const [generatedVideo, setGeneratedVideo] = useState<string | null>(null);
@@ -276,6 +441,7 @@ const App: React.FC = () => {
   const [aiModelAge, setAiModelAge] = useState('REMAJA');
   const [isHijabModel, setIsHijabModel] = useState(false);
   const [affiliateAspectRatio, setAffiliateAspectRatio] = useState('9:16');
+  const [affiliateResultAspectRatio, setAffiliateResultAspectRatio] = useState('9:16');
   const [affiliateAdType, setAffiliateAdType] = useState('AUTO');
   const [narrationLanguage, setNarrationLanguage] = useState('INDONESIA');
   const [voiceAccent, setVoiceAccent] = useState('');
@@ -283,11 +449,28 @@ const App: React.FC = () => {
   const [affiliateUgcPhotos, setAffiliateUgcPhotos] = useState<string[]>([]);
   const [affiliateCommercialPhotos, setAffiliateCommercialPhotos] = useState<string[]>([]);
   const [isAffiliateLoading, setIsAffiliateLoading] = useState<boolean>(false);
+  const [affiliateLoadingMessage, setAffiliateLoadingMessage] = useState<string>('');
   const [affiliateError, setAffiliateError] = useState<string | null>(null);
+  const [isConceptLoading, setIsConceptLoading] = useState<boolean>(false);
+  const [conceptError, setConceptError] = useState<string | null>(null);
+
+  // --- Movement Suggestion Modal State ---
+  const [movementSuggestion, setMovementSuggestion] = useState<string | null>(null);
+  const [isMovementSuggestionLoading, setIsMovementSuggestionLoading] = useState<boolean>(false);
+  const [movementSuggestionError, setMovementSuggestionError] = useState<string | null>(null);
+  const [isSuggestionCopied, setIsSuggestionCopied] = useState<boolean>(false);
+
+  // --- Crop Modal State ---
+  const [cropModalData, setCropModalData] = useState<{
+    src: string;
+    aspect: string;
+    slot?: 'main' | number | 'model-main' | 'model-support' | 'edit-ref';
+  } | null>(null);
 
   const mainProductPhotoRef = useRef<HTMLInputElement>(null);
   const supportingProductPhotosRef = useRef<HTMLInputElement>(null);
   const modelPhotosRef = useRef<HTMLInputElement>(null);
+  const editDetailRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
     const handleScroll = () => {
@@ -312,19 +495,34 @@ const App: React.FC = () => {
 
 
   useEffect(() => {
+    const processImg = async (url: string | null) => {
+        if (url) {
+            try {
+                return await processImageToAspectRatio(url, aspectRatio);
+            } catch (err) {
+                console.error("Gagal memproses gambar:", err);
+                return url;
+            }
+        }
+        return null;
+    };
+
+    // Process old single uploaded image
     if (uploadedImage) {
-        processImageToAspectRatio(uploadedImage, aspectRatio)
-            .then(processedDataUrl => {
-                setProcessedImage(processedDataUrl);
-            })
-            .catch(error => {
-                console.error("Gagal memproses gambar:", error);
-                setProcessedImage(uploadedImage);
-            });
+        processImg(uploadedImage).then(setProcessedImage);
     } else {
         setProcessedImage(null);
     }
-  }, [uploadedImage, aspectRatio]);
+
+    // Process AI Generator images
+    processImg(mainProductImage).then(setProcessedMainImage);
+    Promise.all(supportingImages.map(img => processImg(img))).then(setProcessedSupportingImages);
+
+    // Process Model images
+    processImg(mainModelImage).then(setProcessedMainModelImage);
+    processImg(supportingModelImage).then(setProcessedSupportingModelImage);
+
+  }, [uploadedImage, mainProductImage, supportingImages, mainModelImage, supportingModelImage, aspectRatio]);
 
   useEffect(() => {
     if (activeTool !== 'gambar') return;
@@ -374,7 +572,7 @@ const App: React.FC = () => {
       if (palette) {
         promptBody += `, dengan palet warna ${palette}`;
       }
-      if (aspectRatio && !uploadedImage) {
+      if (aspectRatio && !mainProductImage && !uploadedImage) {
           promptBody += `, dalam rasio aspek ${aspectRatio}`;
       }
       let resolutionDetails = '';
@@ -391,14 +589,14 @@ const App: React.FC = () => {
       }
       promptBody += `. ${resolutionDetails}.`;
 
-      if (uploadedImage && removeBackground) {
+      if ((uploadedImage || mainProductImage) && removeBackground) {
         setFinalPrompt(`Hapus total latar belakang dari gambar ini, buat menjadi transparan, dan fokus hanya pada subjek utama. Setelah itu, terapkan deskripsi berikut ke subjek: ${promptBody}`);
       } else {
         setFinalPrompt(promptBody);
       }
     };
     constructPrompt();
-  }, [subject, style, environment, customEnvironment, environmentDetails, palette, details, uploadedImage, resolution, backgroundBlur, cameraAngle, lightingStyle, timeOfDay, activeTool, removeBackground, aspectRatio]);
+  }, [subject, style, environment, customEnvironment, environmentDetails, palette, details, uploadedImage, mainProductImage, resolution, backgroundBlur, cameraAngle, lightingStyle, timeOfDay, activeTool, removeBackground, aspectRatio]);
 
   useEffect(() => {
     if (activeTool !== 'film') return;
@@ -436,22 +634,70 @@ const App: React.FC = () => {
     constructVideoPrompt();
   }, [videoSubject, videoAction, videoStyle, videoEnvironment, videoTimeOfDay, cameraMovement, videoLightingStyle, videoPalette, videoDetails, videoResolution, videoAspectRatio, activeTool, isSoundEnabled, soundLanguage, voiceGender, speakingStyle, videoMood, isDialogueEnabled, dialogueText]);
   
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, slot?: 'main' | number | 'model-main' | 'model-support' | 'edit-ref') => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setUploadedImage(reader.result as string);
+        const result = reader.result as string;
+        // Open the crop modal instead of setting it directly
+        setCropModalData({
+          src: result,
+          aspect: aspectRatio, // Respect user-selected global aspect ratio
+          slot: slot
+        });
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const removeUploadedImage = () => {
-    setUploadedImage(null);
-    setRemoveBackground(false);
-    if(fileInputRef.current) {
-        fileInputRef.current.value = "";
+  const handleApplyCroppedImage = (croppedBase64: string) => {
+    const slot = cropModalData?.slot;
+    if (slot === 'main') {
+        setMainProductImage(croppedBase64);
+    } else if (slot === 'model-main') {
+        setMainModelImage(croppedBase64);
+    } else if (slot === 'model-support') {
+        setSupportingModelImage(croppedBase64);
+    } else if (slot === 'edit-ref') {
+        setEditReferenceImage(croppedBase64);
+    } else if (typeof slot === 'number') {
+        setSupportingImages(prev => {
+            const newArr = [...prev];
+            newArr[slot] = croppedBase64;
+            return newArr;
+        });
+    } else {
+        setUploadedImage(croppedBase64);
+    }
+    setCropModalData(null);
+  };
+
+  const removeUploadedImage = (slot?: 'main' | number | 'model-main' | 'model-support' | 'edit-ref') => {
+    if (slot === 'main') {
+        setMainProductImage(null);
+        if (mainImageInputRef.current) mainImageInputRef.current.value = "";
+    } else if (slot === 'model-main') {
+        setMainModelImage(null);
+        if (mainModelInputRef.current) mainModelInputRef.current.value = "";
+    } else if (slot === 'model-support') {
+        setSupportingModelImage(null);
+        if (supportModelInputRef.current) supportModelInputRef.current.value = "";
+    } else if (slot === 'edit-ref') {
+        setEditReferenceImage(null);
+        if (editReferenceInputRef.current) editReferenceInputRef.current.value = "";
+    } else if (typeof slot === 'number') {
+        setSupportingImages(prev => {
+            const newArr = [...prev];
+            newArr[slot] = null;
+            return newArr;
+        });
+        const refs = [supportInputRef1, supportInputRef2, supportInputRef3];
+        if (refs[slot]?.current) refs[slot]!.current!.value = "";
+    } else {
+        setUploadedImage(null);
+        setRemoveBackground(false);
+        if(fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -497,7 +743,18 @@ const App: React.FC = () => {
     setGeneratedImages(null);
     try {
       let imageUrls: string[];
-      if (processedImage && uploadedImage) {
+      
+      // Determine if we are using the new multi-ref system or the legacy single upload
+      const refs = [
+          processedMainImage, 
+          ...processedSupportingImages,
+          processedMainModelImage,
+          processedSupportingModelImage
+      ].filter((img): img is string => !!img);
+      const legacyRef = processedImage;
+      const allRefs = refs.length > 0 ? refs : (legacyRef ? [legacyRef] : []);
+
+      if (allRefs.length > 0) {
         const posePrompts = [
             'dalam pose berdiri seluruh badan',
             'dalam pose duduk santai',
@@ -507,8 +764,8 @@ const App: React.FC = () => {
         
         const generatedUrls: string[] = [];
         for (const pose of posePrompts) {
-            const fullPrompt = `Gunakan gambar referensi ini sebagai panduan visual utama. Pertahankan konsistensi pada penampilan subjek, pakaian, produk, dan latar belakang yang ada di gambar referensi. Terapkan prompt berikut: "${finalPrompt}". Fokus utama perubahan adalah untuk menyesuaikan pose subjek menjadi: ${pose}. Hindari perubahan drastis pada elemen-elemen penting lainnya.`;
-            const imageUrl = await editImageWithPrompt(fullPrompt, processedImage);
+            const fullPrompt = `Gunakan gambar referensi yang diberikan sebagai panduan visual utama. Pertahankan konsistensi yang sangat ketat pada penampilan subjek, pakaian, detail produk, dan estetika latar belakang yang ada di gambar referensi. Terapkan prompt deskriptif berikut: "${finalPrompt}". Fokus utama perubahan hanya untuk menyesuaikan pose subjek menjadi: ${pose}. Pastikan subjek tetap terlihat sama persis dengan yang ada di gambar referensi.`;
+            const imageUrl = await generateImageWithMultipleRefs(fullPrompt, allRefs);
             generatedUrls.push(imageUrl);
         }
         imageUrls = generatedUrls;
@@ -535,7 +792,57 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [finalPrompt, uploadedImage, processedImage, aspectRatio]);
+  }, [finalPrompt, processedMainImage, processedSupportingImages, processedMainModelImage, processedSupportingModelImage, processedImage, aspectRatio]);
+
+  const handleRegenerateIndividual = useCallback(async (index: number, newDetail?: string, newAngle?: string) => {
+    if (!generatedImages) return;
+    setIsIndividualLoading(true);
+    setError(null);
+    try {
+      const refs = [
+          processedMainImage, 
+          ...processedSupportingImages,
+          processedMainModelImage,
+          processedSupportingModelImage,
+          editReferenceImage // Add individual edit reference
+      ].filter((img): img is string => !!img);
+      const legacyRef = processedImage;
+      const allRefs = refs.length > 0 ? refs : (legacyRef ? [legacyRef] : []);
+
+      // Base context from existing finalPrompt but override detail or angle if provided
+      let currentPromptBody = finalPrompt;
+      if (newAngle) {
+          currentPromptBody = currentPromptBody.replace(/sudut pandang [^,.]+/i, `sudut pandang ${newAngle}`);
+          if (!currentPromptBody.includes(newAngle)) {
+              currentPromptBody += `, sudut pandang ${newAngle}`;
+          }
+      }
+
+      const fullPrompt = allRefs.length > 0 
+        ? `Gunakan gambar referensi yang diberikan. Pertahankan konsistensi ketat. Deskripsi dasar: "${currentPromptBody}". Tambahan modifikasi detail: ${newDetail || 'pertahankan pose sebelumnya'}.`
+        : `${currentPromptBody}. Modifikasi spesifik: ${newDetail || 'pertahankan estetika'}.`;
+
+      let imageUrl: string;
+      if (allRefs.length > 0) {
+          imageUrl = await generateImageWithMultipleRefs(fullPrompt, allRefs);
+      } else {
+          imageUrl = await generateSingleImage(fullPrompt, aspectRatio as any);
+      }
+
+      setGeneratedImages(prev => {
+          if (!prev) return prev;
+          const next = [...prev];
+          next[index] = imageUrl;
+          return next;
+      });
+      setIsEditModalOpen(false);
+    } catch (err) {
+      handleApiError(err, setError);
+    } finally {
+      setIsIndividualLoading(false);
+    }
+  }, [generatedImages, finalPrompt, processedMainImage, processedSupportingImages, processedMainModelImage, processedSupportingModelImage, processedImage, editReferenceImage, aspectRatio]);
+
 
   const handleGenerateVideo = useCallback(async () => {
     setIsVideoLoading(true);
@@ -646,6 +953,7 @@ const App: React.FC = () => {
         setParsedJsonPrompt(parsedJson);
 
         setIsJsonImageLoading(true);
+        setJsonGeneratedImages([]); // Start with an empty array for progressive loading
         try {
             const imagePrompts = parsedJson.map((sceneData: any) => {
                 const character = sceneData.characters?.[0]?.appearance || videoSubject;
@@ -661,11 +969,13 @@ const App: React.FC = () => {
                 throw new Error("Gagal membuat prompt gambar dari JSON yang dihasilkan.");
             }
             
-            const imagePromises = imagePrompts.map(prompt =>
-                generateSingleImage(prompt, videoAspectRatio as any)
-            );
-            const generatedUrls = await Promise.all(imagePromises);
-            setJsonGeneratedImages(generatedUrls);
+            const generatedUrls: string[] = [];
+            for (const prompt of imagePrompts) {
+                const imageUrl = await generateSingleImage(prompt, videoAspectRatio as any);
+                generatedUrls.push(imageUrl);
+                setJsonGeneratedImages([...generatedUrls]); // Update UI progressively
+                await new Promise(resolve => setTimeout(resolve, 1000)); // 1-second delay to avoid rate limiting
+            }
 
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan saat membuat gambar dari JSON.';
@@ -725,6 +1035,36 @@ const App: React.FC = () => {
         setIsAnalysisLoading(false);
     }
   }, [videoUploadedImage]);
+
+  const handleSuggestMovementFromImage = useCallback(async (imageUrl: string, format: 'text' | 'json' = 'text') => {
+    setIsMovementSuggestionLoading(true);
+    setMovementSuggestion(null);
+    setMovementSuggestionError(null);
+    try {
+        const analysis = await analyzeImageForMovement(imageUrl);
+        let suggestion: string;
+        if (format === 'json') {
+          suggestion = JSON.stringify(analysis, null, 2);
+        } else {
+          suggestion = `Berikut adalah saran gerakan dan konsep berdasarkan gambar:\n\nAksi Utama: ${analysis.mainAction}\nGerakan Kamera: ${analysis.cameraMovement}\n\nKonsep Video 3 Babak:\n- Pancingan (Hook): ${analysis.hookMovement}\n- Solusi (Problem-Solve): ${analysis.problemMovement}\n- Ajakan Bertindak (CTA): ${analysis.ctaMovement}`;
+        }
+        setMovementSuggestion(suggestion);
+    } catch (err) {
+        handleApiError(err, setMovementSuggestionError);
+    } finally {
+        setIsMovementSuggestionLoading(false);
+    }
+  }, []);
+
+  const handleCopySuggestion = useCallback(() => {
+    if (!movementSuggestion) return;
+    navigator.clipboard.writeText(movementSuggestion).then(() => {
+        setIsSuggestionCopied(true);
+        setTimeout(() => setIsSuggestionCopied(false), 2000);
+    }).catch(err => {
+        console.error('Gagal menyalin teks: ', err);
+    });
+  }, [movementSuggestion]);
 
   const handleCopyBlock = (blockContent: any, blockIndex: number) => {
       const jsonString = JSON.stringify(blockContent, null, 2);
@@ -802,6 +1142,7 @@ const App: React.FC = () => {
 
         const readAsDataURL = (file: File): Promise<string> => {
             return new Promise((resolve) => {
+                // Fix: Initialize the reader before accessing its properties.
                 const reader = new FileReader();
                 reader.onloadend = () => resolve(reader.result as string);
                 reader.readAsDataURL(file);
@@ -831,71 +1172,87 @@ const App: React.FC = () => {
     const removeModelPhoto = (index: number) => {
         setModelPhotos(prev => prev.filter((_, i) => i !== index));
     };
+    
+    const handleGenerateConcept = useCallback(async () => {
+        if (!mainProductPhoto) return;
+
+        setIsConceptLoading(true);
+        setConceptError(null);
+        try {
+          const referenceImages = [mainProductPhoto, ...supportingProductPhotos.map(p => p.url)].filter(Boolean);
+          const concept = await generateProductConcept(referenceImages as string[]);
+          setProductConcept(concept);
+        } catch (err) {
+          handleApiError(err, setConceptError);
+        } finally {
+          setIsConceptLoading(false);
+        }
+    }, [mainProductPhoto, supportingProductPhotos]);
 
     const handleGenerateAffiliateContent = useCallback(async () => {
-    if (!mainProductPhoto) return;
+        if (!mainProductPhoto) return;
 
-    setIsAffiliateLoading(true);
-    setAffiliateError(null);
-    setAffiliateBrollPhotos([]);
-    setAffiliateUgcPhotos([]);
-    setAffiliateCommercialPhotos([]);
+        setIsAffiliateLoading(true);
+        setAffiliateError(null);
+        setAffiliateBrollPhotos([]);
+        setAffiliateUgcPhotos([]);
+        setAffiliateCommercialPhotos([]);
+        setAffiliateLoadingMessage('Mempersiapkan...');
 
-    try {
-      const allReferenceImages = [
-        mainProductPhoto,
-        ...supportingProductPhotos.map(p => p.url),
-        ...modelPhotos
-      ].filter((img): img is string => !!img);
+        try {
+            const allReferenceImages = [
+                mainProductPhoto,
+                ...supportingProductPhotos.map(p => p.url),
+                ...modelPhotos
+            ].filter((img): img is string => !!img);
 
-      const basePrompt = `
-        Product & Concept: "${productConcept}".
-        Reference images provided show the main product, supporting angles, and model (if any).
-        AI Model characteristics: Type ${aiModelType}, Age ${aiModelAge}${isHijabModel ? ', wearing Hijab' : ''}.
-        Aspect Ratio: ${affiliateAspectRatio}.
-        Ad Type: ${affiliateAdType}.
-        Language for text overlay (if any): ${narrationLanguage}.
-        ${addTextOverlay ? 'The final image SHOULD include relevant text overlay.' : 'The final image should NOT include any text overlay.'}
-        Voice Accent for narration context: ${voiceAccent}.
-      `;
+            const basePrompt = `
+                Product & Concept: "${productConcept}".
+                Reference images provided show the main product, supporting angles, and model (if any).
+                AI Model characteristics: Type ${aiModelType}, Age ${aiModelAge}${isHijabModel ? ', wearing Hijab' : ''}.
+                Aspect Ratio: ${affiliateAspectRatio}.
+                Ad Type: ${affiliateAdType}.
+                Language for text overlay (if any): ${narrationLanguage}.
+                ${addTextOverlay ? 'The final image SHOULD include relevant text overlay.' : 'The final image should NOT include any text overlay.'}
+                Voice Accent for narration context: ${voiceAccent}.
+            `;
 
-      const generateImageSet = async (style: string) => {
-        const stylePrompt = `
-          Generate 4 realistic photos for an affiliate marketing campaign with a "${style}" style.
-          ${basePrompt}
-          For the "${style}" style, ensure the output has these qualities:
-          - B-Roll: Cinematic, detailed shots, often close-ups or showing the product in a lifestyle context. Focus on aesthetics.
-          - UGC (User-Generated Content): Authentic, casual, as if taken by a real customer with a smartphone. Can have minor imperfections.
-          - Commercial: Polished, professional, well-lit, studio-quality, suitable for a high-end advertisement.
-        `;
-        // We'll generate 4 images by calling the service 4 times in parallel
-        const promises = Array(4).fill(0).map(() => 
-            generateAffiliateImageFromRefs(stylePrompt, allReferenceImages)
-        );
-        return await Promise.all(promises);
-      };
+            const generateImageSet = async (style: string, setter: React.Dispatch<React.SetStateAction<string[]>>) => {
+                const stylePrompt = `
+                Generate 4 realistic photos for an affiliate marketing campaign with a "${style}" style.
+                ${basePrompt}
+                For the "${style}" style, ensure the output has these qualities:
+                - B-Roll: Cinematic, detailed shots, often close-ups or showing the product in a lifestyle context. Focus on aesthetics.
+                - UGC (User-Generated Content): Authentic, casual, as if taken by a real customer with a smartphone. Can have minor imperfections.
+                - Commercial: Polished, professional, well-lit, studio-quality, suitable for a high-end advertisement.
+                `;
+                
+                for (let i = 0; i < 4; i++) {
+                    setAffiliateLoadingMessage(`Menghasilkan gambar ${style} (${i + 1}/4)...`);
+                    const imageUrl = await generateAffiliateImageFromRefs(stylePrompt, allReferenceImages);
+                    const processedImageUrl = await processImageToAspectRatio(imageUrl, affiliateAspectRatio);
+                    setter(prev => [...prev, processedImageUrl]);
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // 1-second delay to avoid rate limiting
+                }
+            };
+            
+            await generateImageSet('B-Roll', setAffiliateBrollPhotos);
+            await generateImageSet('UGC', setAffiliateUgcPhotos);
+            await generateImageSet('Commercial', setAffiliateCommercialPhotos);
+            
+            setAffiliateLoadingMessage('');
 
-      // Run all generations in parallel
-      const [broll, ugc, commercial] = await Promise.all([
-        generateImageSet('B-Roll'),
-        generateImageSet('UGC'),
-        generateImageSet('Commercial')
-      ]);
-
-      setAffiliateBrollPhotos(broll);
-      setAffiliateUgcPhotos(ugc);
-      setAffiliateCommercialPhotos(commercial);
-
-    } catch (err) {
-      handleApiError(err, setAffiliateError);
-    } finally {
-      setIsAffiliateLoading(false);
-    }
-  }, [
-    mainProductPhoto, supportingProductPhotos, modelPhotos, productConcept, addTextOverlay,
-    aiModelType, aiModelAge, isHijabModel, affiliateAspectRatio, affiliateAdType,
-    narrationLanguage, voiceAccent
-  ]);
+        } catch (err) {
+            handleApiError(err, setAffiliateError);
+        } finally {
+            setIsAffiliateLoading(false);
+            setAffiliateLoadingMessage('');
+        }
+    }, [
+        mainProductPhoto, supportingProductPhotos, modelPhotos, productConcept, addTextOverlay,
+        aiModelType, aiModelAge, isHijabModel, affiliateAspectRatio, affiliateAdType,
+        narrationLanguage, voiceAccent
+    ]);
 
 
   const JsonBlock: React.FC<{ title: string, data: any, blockIndex: number }> = ({ title, data, blockIndex }) => {
@@ -917,7 +1274,7 @@ const App: React.FC = () => {
     );
   };
 
-  const isEditing = !!uploadedImage;
+  const isEditing = !!mainProductImage || !!uploadedImage;
   const isCustomEnvironment = environment === 'Lingkungan Kustom...';
 
   const filteredArtStyles = ART_STYLES.filter(style => 
@@ -927,46 +1284,104 @@ const App: React.FC = () => {
   const renderProductGenerator = () => (
     <div className="p-4 md:p-6 bg-black/20 rounded-2xl border border-white/10 backdrop-blur-xl">
       <div className="flex flex-col gap-8">
-      <DnaInputSection title="Gambar Referensi" description="Unggah gambar untuk diedit atau diubah gayanya.">
-        {uploadedImage ? (
-          <div className="flex flex-col gap-4">
-              <img src={uploadedImage} alt="Pratinjau yang diunggah" className="w-full max-w-2xl mx-auto rounded-lg border-2 border-white/10" />
-              <div className="flex items-center justify-between gap-4">
-                  <div className="p-3 bg-black/20 rounded-lg">
-                      <label htmlFor="remove-bg-toggle" className="flex items-center gap-3 cursor-pointer text-sm text-gray-300">
-                          <input
-                              type="checkbox"
-                              id="remove-bg-toggle"
-                              checked={removeBackground}
-                              onChange={(e) => setRemoveBackground(e.target.checked)}
-                              className="w-4 h-4 text-teal-500 bg-white/10 border-white/20 rounded focus:ring-teal-500"
-                          />
-                          <span>Hapus Background</span>
-                      </label>
-                  </div>
-                  <button 
-                      onClick={removeUploadedImage}
-                      className="px-4 py-2 bg-red-600/50 text-white rounded-lg hover:bg-red-600/80 transition"
-                  >
-                      Hapus
-                  </button>
-              </div>
-          </div>
-        ) : (
-          <>
-            <label htmlFor="file-upload" className="w-full text-center cursor-pointer bg-white/5 text-white rounded-md p-3 border border-white/10 hover:bg-white/10 transition">
-              Klik untuk Mengunggah Gambar
-            </label>
-            <input
-              id="file-upload"
-              ref={fileInputRef}
-              type="file"
-              accept="image/png, image/jpeg, image/webp"
-              onChange={handleFileChange}
-              className="hidden"
-            />
-          </>
-        )}
+      <DnaInputSection title="Gambar Referensi" description="Unggah gambar produk utama dan pendukung untuk memandu AI.">
+        <div className="flex flex-col gap-6">
+            {/* Main Image Slot */}
+            <div className="flex flex-col gap-3">
+                <h3 className="text-sm font-semibold text-gray-400">Foto Produk Utama</h3>
+                {mainProductImage ? (
+                    <div className="relative aspect-video bg-black/30 rounded-lg overflow-hidden border border-teal-500/30">
+                        <img src={mainProductImage} alt="Utama" className="w-full h-full object-contain" />
+                        <button onClick={() => removeUploadedImage('main')} className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full text-white hover:bg-red-500 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+                ) : (
+                    <label className="w-full aspect-video flex flex-col items-center justify-center cursor-pointer bg-white/5 text-gray-400 rounded-lg border-2 border-dashed border-white/10 hover:bg-white/10 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                        <span className="text-sm">Klik untuk Foto Utama</span>
+                        <input type="file" ref={mainImageInputRef} accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, 'main')} />
+                    </label>
+                )}
+            </div>
+
+            {/* Supporting Images Slots */}
+            <div className="grid grid-cols-3 gap-3">
+                {[0, 1, 2].map((idx) => (
+                    <div key={idx} className="flex flex-col gap-2">
+                        <h4 className="text-xs font-medium text-gray-500 text-center">Pendukung #{idx + 1}</h4>
+                        {supportingImages[idx] ? (
+                            <div className="relative aspect-square bg-black/30 rounded-lg overflow-hidden border border-white/10">
+                                <img src={supportingImages[idx]!} alt={`Pendukung ${idx + 1}`} className="w-full h-full object-cover" />
+                                <button onClick={() => removeUploadedImage(idx)} className="absolute top-1 right-1 p-1 bg-black/60 rounded-full text-white hover:bg-red-500 transition">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                        ) : (
+                            <label className="aspect-square flex flex-col items-center justify-center cursor-pointer bg-white/5 text-gray-500 rounded-lg border-2 border-dashed border-white/10 hover:bg-white/10 transition">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, idx)} />
+                            </label>
+                        )}
+                    </div>
+                ))}
+            </div>
+
+            {/* Remove Background Option */}
+            {(mainProductImage || uploadedImage) && (
+                <div className="p-3 bg-black/20 rounded-lg flex items-center justify-between border border-white/5">
+                    <label htmlFor="remove-bg-toggle" className="flex items-center gap-3 cursor-pointer text-sm text-gray-300">
+                        <input
+                            type="checkbox"
+                            id="remove-bg-toggle"
+                            checked={removeBackground}
+                            onChange={(e) => setRemoveBackground(e.target.checked)}
+                            className="w-4 h-4 text-teal-500 bg-white/10 border-white/20 rounded focus:ring-teal-500"
+                        />
+                        <span>Hapus Background Asli</span>
+                    </label>
+                </div>
+            )}
+        </div>
+      </DnaInputSection>
+
+      <DnaInputSection title="Upload Model" description="Unggah foto model utama dan pendukung untuk memandu AI.">
+        <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-3">
+                <h4 className="text-xs font-semibold text-gray-400">Model Utama</h4>
+                {mainModelImage ? (
+                    <div className="relative aspect-square bg-black/30 rounded-lg overflow-hidden border border-teal-500/30">
+                        <img src={mainModelImage} alt="Model Utama" className="w-full h-full object-cover" />
+                        <button onClick={() => removeUploadedImage('model-main')} className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full text-white hover:bg-red-500 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+                ) : (
+                    <label className="w-full aspect-square flex flex-col items-center justify-center cursor-pointer bg-white/5 text-gray-400 rounded-lg border-2 border-dashed border-white/10 hover:bg-white/10 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                        <span className="text-xs text-center">Klik Foto Model Utama</span>
+                        <input type="file" ref={mainModelInputRef} accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, 'model-main')} />
+                    </label>
+                )}
+            </div>
+            <div className="flex flex-col gap-3">
+                <h4 className="text-xs font-semibold text-gray-400">Model Pendukung</h4>
+                {supportingModelImage ? (
+                    <div className="relative aspect-square bg-black/30 rounded-lg overflow-hidden border border-white/10">
+                        <img src={supportingModelImage} alt="Model Pendukung" className="w-full h-full object-cover" />
+                        <button onClick={() => removeUploadedImage('model-support')} className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full text-white hover:bg-red-500 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+                ) : (
+                    <label className="w-full aspect-square flex flex-col items-center justify-center cursor-pointer bg-white/5 text-gray-400 rounded-lg border-2 border-dashed border-white/10 hover:bg-white/10 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                        <span className="text-xs text-center">Klik Foto Model Pendukung</span>
+                        <input type="file" ref={supportModelInputRef} accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, 'model-support')} />
+                    </label>
+                )}
+            </div>
+        </div>
       </DnaInputSection>
 
       <DnaInputSection title="Kualitas & Dimensi" description="Tentukan tingkat detail dan rasio aspek.">
@@ -1149,6 +1564,15 @@ const App: React.FC = () => {
             error={error}
             aspectRatio={aspectRatio}
             onUseForVideo={handleUseImageForVideo}
+            onEditDetail={(index) => {
+              setEditingImageIndex(index);
+              setEditDetailPrompt('');
+              setEditReferenceImage(null);
+              setIsEditModalOpen(true);
+            }}
+            onChangeAngle={(index, angle) => {
+              handleRegenerateIndividual(index, undefined, angle);
+            }}
           />
         </div>
       )}
@@ -1335,7 +1759,7 @@ const App: React.FC = () => {
         )}
       </DnaInputSection>
 
-       {(isJsonImageLoading || jsonImageError || jsonGeneratedImages) && (
+       {(isJsonImageLoading || jsonImageError || (jsonGeneratedImages && jsonGeneratedImages.length > 0)) && (
             <DnaInputSection title="Visual Referensi Adegan" description="Gambar yang dihasilkan AI berdasarkan setiap adegan dari prompt JSON.">
                 {isJsonImageLoading && <p className="text-gray-400">Menghasilkan visual adegan...</p>}
                 {jsonImageError && <p className="text-red-400 text-sm">{jsonImageError}</p>}
@@ -1470,7 +1894,7 @@ const App: React.FC = () => {
                                                 type="text"
                                                 value={photo.description}
                                                 onChange={(e) => handleSupportingPhotoDescriptionChange(index, e.target.value)}
-                                                placeholder="TAMPAK atas"
+                                                placeholder="misal: tampak belakang"
                                                 className="w-full bg-white/5 text-white rounded-md p-2.5 text-sm border border-white/10 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition"
                                             />
                                         </div>
@@ -1502,6 +1926,32 @@ const App: React.FC = () => {
                         rows={4}
                         className="w-full bg-white/5 text-white rounded-md p-3 border border-white/10 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition resize-y"
                     />
+                     <button
+                        onClick={handleGenerateConcept}
+                        disabled={!mainProductPhoto || isConceptLoading || !isApiKeySelected}
+                        className="w-full mt-3 py-2 px-4 text-sm font-semibold text-white rounded-lg bg-gradient-to-r from-blue-600 to-indigo-500 hover:from-blue-700 hover:to-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-md flex items-center justify-center gap-2"
+                    >
+                         {isConceptLoading ? (
+                             <>
+                                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span>Menganalisis...</span>
+                             </>
+                         ) : (
+                             <>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 0 0 .95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 0 0-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 0 0-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 0 0-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 0 0 .951-.69l1.07-3.292z"></path></svg>
+                                <span>Konsep Otomatis</span>
+                             </>
+                         )}
+                    </button>
+                    {conceptError && <p className="text-red-400 text-sm mt-2">{conceptError}</p>}
+                    {(!mainProductPhoto || !isApiKeySelected) && (
+                        <p className="text-yellow-400 text-xs mt-2 text-center">
+                            Unggah foto produk utama & pilih Kunci API untuk mengaktifkan.
+                        </p>
+                    )}
                     <div className="mt-6 pt-6 border-t border-white/10 flex justify-between items-center">
                         <div>
                             <h4 className="font-semibold text-md text-white">Tambahkan Tulisan pada Hasil</h4>
@@ -1632,20 +2082,47 @@ const App: React.FC = () => {
             </div>
 
             <div className="lg:col-span-2 flex flex-col gap-6">
+                 {isAffiliateLoading && affiliateLoadingMessage && (
+                     <div className="p-4 bg-black/30 rounded-xl border border-white/10 text-center">
+                         <p className="font-semibold text-teal-400 animate-pulse">{affiliateLoadingMessage}</p>
+                     </div>
+                 )}
+                 {(!isAffiliateLoading && (affiliateBrollPhotos.length > 0 || affiliateUgcPhotos.length > 0 || affiliateCommercialPhotos.length > 0)) && (
+                    <div className="p-4 bg-black/30 rounded-xl border border-white/10">
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Pilih Rasio Tampilan Hasil</label>
+                        <CustomSelect
+                            value={affiliateResultAspectRatio}
+                            onChange={setAffiliateResultAspectRatio}
+                            options={AFFILIATE_ASPECT_RATIOS}
+                        />
+                    </div>
+                 )}
                  <AffiliateResultSection 
                     title="Foto B-Roll" 
                     images={affiliateBrollPhotos} 
                     isLoading={isAffiliateLoading} 
+                    aspectRatio={affiliateResultAspectRatio}
+                    onImageUpdate={(index, url) => setAffiliateBrollPhotos(prev => prev.map((img, i) => (i === index ? url : img)))}
+                    onSuggestMovement={handleSuggestMovementFromImage}
+                    isApiKeySelected={isApiKeySelected}
                  />
                  <AffiliateResultSection 
                     title="Foto UGC" 
                     images={affiliateUgcPhotos} 
                     isLoading={isAffiliateLoading} 
+                    aspectRatio={affiliateResultAspectRatio}
+                    onImageUpdate={(index, url) => setAffiliateUgcPhotos(prev => prev.map((img, i) => (i === index ? url : img)))}
+                    onSuggestMovement={handleSuggestMovementFromImage}
+                    isApiKeySelected={isApiKeySelected}
                  />
                  <AffiliateResultSection 
                     title="Foto Komersial" 
                     images={affiliateCommercialPhotos} 
-                    isLoading={isAffiliateLoading}
+                    isLoading={isAffiliateLoading} 
+                    aspectRatio={affiliateResultAspectRatio}
+                    onImageUpdate={(index, url) => setAffiliateCommercialPhotos(prev => prev.map((img, i) => (i === index ? url : img)))}
+                    onSuggestMovement={handleSuggestMovementFromImage}
+                    isApiKeySelected={isApiKeySelected}
                  />
                  {affiliateError && !isAffiliateLoading && (
                      <div className="p-4 bg-red-900/20 rounded-xl border border-red-500/30 text-center">
@@ -1677,7 +2154,7 @@ const App: React.FC = () => {
     },
     'film': {
         renderer: renderVideoGenerator,
-        title: "Video Generator",
+        title: "Prompt Studio",
         description: "Hasilkan klip video sinematik dari sebuah prompt."
     },
     'projects': { renderer: () => renderComingSoon('Projects'), title: "Projects", description: "Coming Soon." },
@@ -1818,6 +2295,129 @@ const App: React.FC = () => {
           </div>
         </div>
       </main>
+
+      {/* Edit Prompt Detail Modal */}
+      {isEditModalOpen && editingImageIndex !== null && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[70] p-4 backdrop-blur-md">
+          <div className="bg-[#1a182e] border border-white/20 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+             <div className="p-5 border-b border-white/10 flex justify-between items-center bg-[#221f3d]">
+                <h3 className="text-xl font-bold text-white">Edit Prompt Detail</h3>
+                <button onClick={() => setIsEditModalOpen(false)} className="text-gray-400 hover:text-white transition-colors">
+                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+             </div>
+             <div className="p-6 space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Ide Prompt Baru (Manual)</label>
+                  <textarea 
+                    value={editDetailPrompt}
+                    onChange={(e) => setEditDetailPrompt(e.target.value)}
+                    placeholder="Contoh: tambahkan kacamata hitam, ubah ekspresi jadi tertawa..."
+                    rows={4}
+                    className="w-full bg-white/5 text-white rounded-xl p-4 border border-white/10 focus:ring-2 focus:ring-teal-500 transition resize-none outline-none"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Referensi Gambar (Opsional)</label>
+                  <div className="flex flex-col gap-3">
+                     {editReferenceImage ? (
+                        <div className="relative aspect-video w-full bg-black/30 rounded-xl overflow-hidden group">
+                           <img src={editReferenceImage} alt="Referesi Edit" className="w-full h-full object-contain" />
+                           <button 
+                            onClick={() => removeUploadedImage('edit-ref')}
+                            className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full text-white hover:bg-red-500 transition"
+                           >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                           </button>
+                        </div>
+                     ) : (
+                        <button 
+                          onClick={() => editReferenceInputRef.current?.click()}
+                          className="w-full py-3 px-4 bg-white/5 border border-white/10 rounded-xl text-xs font-semibold text-gray-300 hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                          Upload Referensi
+                        </button>
+                     )}
+                     <input 
+                      ref={editReferenceInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleFileChange(e, 'edit-ref')}
+                     />
+                  </div>
+                </div>
+             </div>
+             <div className="p-6 bg-[#221f3d] border-t border-white/10 flex gap-4">
+                <button 
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="flex-1 py-3 px-6 rounded-xl bg-white/5 text-gray-300 hover:bg-white/10 font-semibold transition-all border border-white/10"
+                >
+                  Simpan
+                </button>
+                <button 
+                  onClick={() => handleRegenerateIndividual(editingImageIndex, editDetailPrompt)}
+                  disabled={isIndividualLoading || !isApiKeySelected}
+                  className="flex-1 py-3 px-6 rounded-xl bg-gradient-to-r from-purple-600 to-teal-500 text-white font-bold shadow-lg hover:from-purple-700 hover:to-teal-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isIndividualLoading ? (
+                    <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" className="opacity-75"></path></svg>
+                  ) : 'Regenerate'}
+                </button>
+             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Crop Modal */}
+      {cropModalData && (
+        <ImageCropModal
+          imageSrc={cropModalData.src}
+          aspectRatio={cropModalData.aspect}
+          onCrop={handleApplyCroppedImage}
+          onCancel={() => setCropModalData(null)}
+        />
+      )}
+
+      {/* Movement Suggestion Modal */}
+      {(isMovementSuggestionLoading || movementSuggestion || movementSuggestionError) && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => { setMovementSuggestion(null); setMovementSuggestionError(null); }}>
+            <div className="bg-[#161324] border border-white/10 rounded-xl p-6 max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+                <h3 className="text-lg font-semibold text-white mb-4">Saran Prompt Gerakan</h3>
+                {isMovementSuggestionLoading && (
+                    <div className="flex items-center justify-center text-gray-300">
+                        <svg className="animate-spin h-6 w-6 mr-3" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" className="opacity-75"></path></svg>
+                        Menganalisis gambar...
+                    </div>
+                )}
+                {movementSuggestionError && <p className="text-red-400 text-sm">{movementSuggestionError}</p>}
+                {movementSuggestion && <pre className="text-gray-300 text-sm whitespace-pre-wrap font-sans bg-black/20 p-4 rounded-md">{movementSuggestion}</pre>}
+                <div className="flex gap-2 mt-4">
+                    <button 
+                        onClick={() => { setMovementSuggestion(null); setMovementSuggestionError(null); }}
+                        className="flex-1 py-2 px-4 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+                    >
+                        Tutup
+                    </button>
+                    {movementSuggestion && (
+                        <button
+                            onClick={handleCopySuggestion}
+                            disabled={isSuggestionCopied}
+                            className={`flex-1 py-2 px-4 rounded-lg transition-colors ${
+                                isSuggestionCopied 
+                                ? 'bg-green-600 text-white' 
+                                : 'bg-teal-500 hover:bg-teal-600 text-white'
+                            }`}
+                        >
+                            {isSuggestionCopied ? 'Tersalin!' : 'Salin'}
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 };

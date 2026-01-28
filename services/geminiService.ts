@@ -1,5 +1,3 @@
-
-
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 
 const handleError = (error: unknown, context: string): never => {
@@ -10,35 +8,93 @@ const handleError = (error: unknown, context: string): never => {
 };
 
 /**
- * Generates an image from a text prompt using the 'imagen-4.0-generate-001' model.
+ * Generates an image with multiple reference images for conditioning.
+ * @param prompt The descriptive text prompt.
+ * @param base64Images Array of base64 data URLs.
+ * @returns A promise that resolves to a base64 data URL.
+ */
+export const generateImageWithMultipleRefs = async (prompt: string, base64Images: string[]): Promise<string> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  try {
+    // Fix: Explicitly type parts as any[] to allow both inlineData and text parts
+    const parts: any[] = base64Images.map(img => {
+        const match = img.match(/^data:(.+);base64,(.+)$/);
+        if (!match) throw new Error("Format URL data gambar base64 tidak valid.");
+        return { inlineData: { mimeType: match[1], data: match[2] } };
+    });
+    
+    parts.push({ text: prompt });
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: { parts },
+      config: {
+        responseModalities: [Modality.IMAGE],
+      },
+    });
+
+    const candidate = response.candidates?.[0];
+    for (const part of candidate?.content?.parts || []) {
+      if (part.inlineData) {
+        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+      }
+    }
+
+    throw new Error(response.text || "Gagal menghasilkan gambar dari referensi ganda.");
+  } catch (error) {
+    handleError(error, 'multi-ref image generation');
+  }
+};
+
+/**
+ * Generates images from a text prompt using the 'gemini-2.5-flash-image' model.
  * @param prompt The text prompt describing the image to generate.
  * @param aspectRatio The desired aspect ratio for the image.
- * @returns A promise that resolves to a base64 data URL of the generated image.
+ * @returns A promise that resolves to an array of base64 data URLs of the generated images.
  */
 export const generateImageFromText = async (prompt: string, aspectRatio: string): Promise<string[]> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
-    const response = await ai.models.generateImages({
-        model: 'imagen-4.0-generate-001',
-        prompt: prompt,
-        config: {
-          numberOfImages: 4,
-          outputMimeType: 'image/jpeg',
-          aspectRatio: aspectRatio as "1:1" | "16:9" | "9:16" | "4:3" | "3:4",
-        },
-    });
+    const imageUrls: string[] = [];
+    const imagePromises = [];
 
-    if (!response.generatedImages || response.generatedImages.length === 0) {
-        throw new Error("API tidak menghasilkan gambar apa pun. Ini mungkin karena pemicu filter keamanan. Coba sesuaikan prompt Anda.");
+    // The model generates one image per call, so we make 4 parallel calls.
+    for (let i = 0; i < 4; i++) {
+        const fullPrompt = `${prompt}, variasi #${i + 1}.`;
+        
+        const promise = ai.models.generateContent({
+            model: 'gemini-2.5-flash-image',
+            contents: {
+                parts: [{ text: fullPrompt }],
+            },
+            config: {
+                responseModalities: [Modality.IMAGE],
+            },
+        });
+        imagePromises.push(promise);
+    }
+    
+    const responses = await Promise.all(imagePromises);
+
+    for (const response of responses) {
+        const candidate = response.candidates?.[0];
+        let foundImage = false;
+        for (const part of candidate?.content?.parts || []) {
+            if (part.inlineData) {
+                const base64ImageBytes: string = part.inlineData.data;
+                imageUrls.push(`data:${part.inlineData.mimeType};base64,${base64ImageBytes}`);
+                foundImage = true;
+                break;
+            }
+        }
+        if (!foundImage) {
+            console.warn("Gagal menghasilkan satu gambar dari set.");
+        }
     }
 
-    const imageUrls = response.generatedImages.map(img => {
-        const base64ImageBytes = img.image?.imageBytes;
-        if (!base64ImageBytes) {
-            throw new Error("Respons API berisi entri gambar yang tidak valid.");
-        }
-        return `data:image/jpeg;base64,${base64ImageBytes}`;
-    });
+    if (imageUrls.length === 0) {
+        throw new Error("API tidak menghasilkan gambar apa pun. Ini mungkin karena pemicu filter keamanan. Coba sesuaikan prompt Anda.");
+    }
 
     return imageUrls;
   } catch (error) {
@@ -201,7 +257,7 @@ export const getPromptFeedback = async (prompt: string): Promise<string> => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-flash-preview',
         contents: `Analyze and provide feedback for this image prompt: "${prompt}"`,
         config: {
           systemInstruction: `You are a prompt engineering expert for generative AI image models. Your task is to analyze a user's prompt and provide constructive, concise, and actionable suggestions for improvement. 
@@ -234,7 +290,7 @@ export const getSmartSuggestions = async (context: { subject: string, style: str
 - Lingkungan: "${context.environment}"`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: userPrompt,
             config: {
                 systemInstruction: `Anda adalah asisten kreatif untuk alat gambar AI generatif. Tugas Anda adalah mengembangkan ide-ide dasar pengguna dan menghasilkan 3 prompt yang berbeda, siap pakai, dan imajinatif.
@@ -266,7 +322,7 @@ export const generateDialogueScript = async (context: { subject: string, action:
 - Petunjuk Gerakan: "${context.movement}"`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: userPrompt,
             config: {
                 systemInstruction: `Anda adalah seorang penulis naskah film AI. Tugas Anda adalah menulis dialog yang singkat, kuat, dan relevan dengan konteks adegan yang diberikan.
@@ -347,7 +403,7 @@ Generate a valid JSON array containing exactly three JSON objects. Each object r
 `;
         
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: userPrompt,
             config: {
                 responseMimeType: "application/json",
@@ -467,7 +523,7 @@ Penting:
 ` };
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: { parts: [imagePart, textPart] },
             config: {
                 responseMimeType: "application/json",
@@ -498,7 +554,7 @@ Penting:
 };
 
 /**
- * Generates a single image from a text prompt using the 'imagen-4.0-generate-001' model.
+ * Generates a single image from a text prompt using the 'gemini-2.5-flash-image' model.
  * @param prompt The text prompt describing the image to generate.
  * @param aspectRatio The desired aspect ratio for the image.
  * @returns A promise that resolves to a base64 data URL of the generated image.
@@ -506,28 +562,104 @@ Penting:
 export const generateSingleImage = async (prompt: string, aspectRatio: string): Promise<string> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
-    const response = await ai.models.generateImages({
-        model: 'imagen-4.0-generate-001',
-        prompt: prompt,
-        config: {
-          numberOfImages: 1,
-          outputMimeType: 'image/jpeg',
-          aspectRatio: aspectRatio as "1:1" | "16:9" | "9:16" | "4:3" | "3:4",
-        },
+    const fullPrompt = prompt;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [{ text: fullPrompt }],
+      },
+      config: {
+        responseModalities: [Modality.IMAGE],
+      },
     });
 
-    const image = response.generatedImages?.[0];
-    const base64ImageBytes = image?.image?.imageBytes;
+    const candidate = response.candidates?.[0];
+    for (const part of candidate?.content?.parts || []) {
+      if (part.inlineData) {
+        const base64ImageBytes: string = part.inlineData.data;
+        return `data:${part.inlineData.mimeType};base64,${base64ImageBytes}`;
+      }
+    }
 
-    if (!base64ImageBytes) {
-        throw new Error("API tidak menghasilkan gambar. Ini mungkin karena pemicu filter keamanan. Coba sesuaikan prompt Anda.");
+    let errorMessage = "Tidak ada data gambar yang ditemukan dalam respons API.";
+    if (candidate) {
+        switch (candidate.finishReason) {
+            case 'SAFETY':
+                errorMessage = "Pembuatan gambar diblokir karena kebijakan keamanan. Coba ubah prompt atau gambar referensi Anda.";
+                break;
+            case 'RECITATION':
+                 errorMessage = "Pembuatan gambar diblokir karena terdeteksi kutipan. Harap ubah prompt Anda.";
+                 break;
+            case 'OTHER':
+                 errorMessage = `Model berhenti karena alasan yang tidak terduga${candidate.finishMessage ? `: ${candidate.finishMessage}` : '.'}`;
+                 break;
+            default:
+                if (response.text) {
+                    errorMessage = `Model merespons dengan teks alih-alih gambar: "${response.text}"`;
+                } else {
+                     errorMessage += " Model mungkin tidak dapat memenuhi permintaan tersebut.";
+                }
+                break;
+        }
+    } else if (response.text) {
+        errorMessage = `Model merespons dengan teks alih-alih gambar: "${response.text}"`;
+    } else if (!response.candidates || response.candidates.length === 0) {
+        errorMessage = "API tidak mengembalikan kandidat respons. Ini mungkin karena pemicu filter keamanan atau masalah internal model.";
     }
     
-    return `data:image/jpeg;base64,${base64ImageBytes}`;
+    throw new Error(errorMessage);
 
   } catch (error) {
     handleError(error, 'single image generation from text');
   }
+};
+
+/**
+ * Generates a product concept description by analyzing reference images.
+ * @param referenceImages An array of base64 data URLs for reference images.
+ * @returns A promise that resolves to a string with the generated product concept.
+ */
+export const generateProductConcept = async (referenceImages: string[]): Promise<string> => {
+    if (referenceImages.length === 0) {
+        throw new Error("Tidak ada gambar referensi yang diberikan untuk menghasilkan konsep.");
+    }
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    try {
+        const imageParts = referenceImages.map(base64Url => {
+            const match = base64Url.match(/^data:(.+);base64,(.+)$/);
+            if (!match) {
+                throw new Error("Format URL data gambar base64 tidak valid dalam gambar referensi.");
+            }
+            return { inlineData: { mimeType: match[1], data: match[2] } };
+        });
+
+        const textPart = {
+            text: `Analyze the provided product image(s). Based on the visual information, generate a concise and compelling product concept description suitable for an affiliate marketing campaign. The description should be in Bahasa Indonesia and follow this structure:
+
+1.  **Product Identification:** Briefly identify what the product is (e.g., "Ini adalah produk skincare berupa serum pencerah...").
+2.  **Target Audience:** Suggest a target audience (e.g., "...untuk wanita usia 20-30 tahun.").
+3.  **Concept/Aesthetic:** Describe the desired photo/video concept and aesthetic (e.g., "Konsep fotonya adalah aesthetic, clean, dan minimalis dengan pencahayaan alami yang lembut untuk menonjolkan tekstur produk.").
+
+Combine these points into a single, well-written paragraph. Be direct and do not add any introductory or concluding text.`
+        };
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: {
+                parts: [...imageParts, textPart],
+            },
+        });
+
+        if (!response.text) {
+            throw new Error("Gagal menghasilkan konsep produk. Respons API kosong.");
+        }
+
+        return response.text.trim();
+
+    } catch (error) {
+        handleError(error, 'generating product concept');
+    }
 };
 
 /**
